@@ -32,13 +32,20 @@ O sistema foi arquitetado com separação clara de responsabilidades, utilizando
 
 ## 🏃 Como rodar o projeto localmente
 
-Foi desenvolvido para que **qualquer instalação dependa 100% de containers**. Você só precisa ter o Docker instalado e as portas 3001, 5173 e 3307 liberadas.
+O projeto foi inteiramente arquitetado para que **toda a instalação dependa 100% dependente de containers**. A **ÚNICA** coisa que você precisa ter instalada na sua máquina é o Docker (além de manter as portas 3001, 5173 e 3307 liberadas na máquina, que é o padrão). Nada de Node.js instável, MariaDB ou outras dependências locais que quebram o projeto.
+
+### 0. Instalar o Docker (Único Pré-requisito)
+Caso ainda não tenha o Docker instalado, acesse o link abaixo, baixe e instale a versão compatível com seu sistema operacional:
+
+[![Baixar Docker](https://img.shields.io/badge/📥_Baixar_Docker_Desktop-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/products/docker-desktop/)
+
+Após a instalação, certifique-se de que o aplicativo do Docker esteja aberto/rodando em segundo plano.
 
 ### 1. Configurar o arquivo `.env`
-Renomeie, ou faça uma cópia, do arquivo `backend/.env.example` para `backend/.env`. (As configurações padrão já funcionam direto na sua máquina).
+Renomeie, ou faça uma cópia, do arquivo `backend/.env.example` para `backend/.env`. (As configurações padrão inseridas já funcionam perfeitamente na sua máquina).
 
 ### 2. Iniciar o sistema
-No diretório raiz do projeto, execute o comando abaixo:
+No diretório raiz do projeto (onde está o arquivo `docker-compose.yml`), abra o seu terminal e execute o comando abaixo:
 
 ```bash
 docker compose up -d --build
