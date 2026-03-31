@@ -18,6 +18,9 @@ O sistema foi arquitetado com separação clara de responsabilidades, utilizando
 - **[React Router DOM](https://reactrouter.com/)**: Gerenciamento das rotas navegáveis da aplicação.
 - **[Lucide React](https://lucide.dev/)**: Biblioteca de ícones consistente e leve.
 
+### Inteligência Artificial (Integração)
+- **[Google Gemini API](https://ai.google.dev/)**: O cérebro da assistente virtual "Rose". Trabalha com o modelo eficiente `gemini-2.5-flash`, acoplado através da biblioteca NodeJS oficial (`@google/generative-ai`), fornecendo suporte didático interativo dentro da plataforma.
+
 ### Infraestrutura
 - **[Docker](https://www.docker.com/) & Docker Compose**: Totalmente conteinerizado, garantindo padronização desde o desenvolvimento até possível deploy. Nada precisa ser instalado na máquina além do próprio Docker.
 
@@ -27,6 +30,7 @@ O sistema foi arquitetado com separação clara de responsabilidades, utilizando
 2. **Context API**: Uso focado para a persistência e consumo da camada de Autenticação (`AuthContext.jsx`) reduzindo o repasse maçante de props manuais.
 3. **Hot-Reload em Contêineres**: O desenvolvimento utiliza volumes do Docker espelhando a máquina física para os contêineres e preservando ferramentas de recompilação do Vite automaticamente.
 4. **Agregação Paralela (Promise.all)**: O endpoint analítico do Dashboard carrega múltiplas KPIs em diferentes tabelas de forma assíncrona otimizando ao máximo o tempo de resposta.
+5. **Prompt Engineering (System Instructions)**: A "Rose" atua como uma assistente *Context-Aware*. O comportamento pedágógico e acolhedor focado em STEM é instanciado limitando rigidamente a modelagem da personalidade por meio de um ficheiro de contexto Markdown lido nativamente pelo backend.
 
 ---
 
@@ -42,7 +46,13 @@ Caso ainda não tenha o Docker instalado, acesse o link abaixo, baixe e instale 
 Após a instalação, certifique-se de que o aplicativo do Docker esteja aberto/rodando em segundo plano.
 
 ### 1. Configurar o arquivo `.env`
-Renomeie, ou faça uma cópia, do arquivo `backend/.env.example` para `backend/.env`. (As configurações padrão inseridas já funcionam perfeitamente na sua máquina).
+Renomeie, ou faça uma cópia, do arquivo `backend/.env.example` para `backend/.env`. As configurações do banco de dados e de chaves JWT já vêm padronizadas para rodar na sua máquina host sem problemas. No entanto, para que a **Assistente Virtual Rose** e o seu Chat funcionem, você precisará adicionar obrigatoriamente neste arquivo a sua própria Chave do Google AI Studio:
+
+```env
+GEMINI_API_KEY="COLOQUE_A_SUA_CHAVE_AQUI"
+```
+
+> **Nota:** Pode criar esta chave de API de forma **100% gratuita** através do portal do [Google AI Studio](https://aistudio.google.com/). O plano gratuito oferece quotas generosas que são perfeitas para rodar testes, realizar simulações e efetuar poucas requisições diárias na nossa aplicação!
 
 ### 2. Iniciar o sistema
 No diretório raiz do projeto (onde está o arquivo `docker-compose.yml`), abra o seu terminal e execute o comando abaixo:

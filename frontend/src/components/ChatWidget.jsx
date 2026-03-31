@@ -2,6 +2,17 @@ import { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send, Loader2, Bot } from "lucide-react";
 import { apiFetch } from "../lib/api";
 
+// Helper to parse basic markdown bold (**text**)
+const formatText = (text) => {
+  if (!text) return null;
+  return text.split(/(\*\*[\s\S]*?\*\*)/g).map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index} className="font-bold">{part.slice(2, -2)}</strong>;
+    }
+    return <span key={index}>{part}</span>;
+  });
+};
+
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
@@ -31,11 +42,13 @@ export default function ChatWidget() {
     setIsLoading(true);
 
     try {
-      // Formata o histórico excluindo a mensagem atual
-      const historyToSend = messages.map(m => ({
-        role: m.role,
-        parts: [{ text: m.text }]
-      }));
+      // Formata o histórico excluindo a mensagem atual e ignorando a primeira (saudação da Rose)
+      const historyToSend = messages
+        .slice(1)
+        .map(m => ({
+          role: m.role,
+          parts: [{ text: m.text }]
+        }));
 
       const response = await apiFetch("/api/chat", {
         method: "POST",
@@ -95,7 +108,7 @@ export default function ChatWidget() {
                   }`}
                   style={{ whiteSpace: "pre-wrap" }}
                 >
-                  {msg.text}
+                  {formatText(msg.text)}
                 </div>
               </div>
             ))}

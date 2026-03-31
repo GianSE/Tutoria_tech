@@ -24,7 +24,7 @@ export async function chatRoutes(fastify, options) {
       // 3. Inicializar a IA
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash",
         systemInstruction,
       });
 
@@ -35,7 +35,7 @@ export async function chatRoutes(fastify, options) {
           parts: [{ text: msg.parts[0]?.text || msg.text || "" }],
         })),
         generationConfig: {
-          maxOutputTokens: 1000,
+          maxOutputTokens: 600,
         },
       });
 
