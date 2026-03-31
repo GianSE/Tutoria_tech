@@ -11,6 +11,7 @@ import { scheduleRoutes }   from "./routes/schedule.js";
 import { dashboardRoutes }  from "./routes/dashboard.js";
 import { attendanceRoutes } from "./routes/attendance.js";
 import { progressRoutes }   from "./routes/progress.js";
+import { chatRoutes }       from "./routes/chat.js";
 
 const app = Fastify({ logger: true });
 
@@ -36,6 +37,7 @@ await app.register(materialRoutes,   { prefix: "/api/materials" });
 await app.register(scheduleRoutes,   { prefix: "/api/schedules" });
 await app.register(attendanceRoutes, { prefix: "/api/schedules" });  // compartilha prefixo /api/schedules
 await app.register(dashboardRoutes,  { prefix: "/api/dashboard" });
+await app.register(chatRoutes,       { prefix: "/api/chat" });
 
 // Health-check
 app.get("/", async () => ({ status: "ok", service: "tutoria-backend" }));
