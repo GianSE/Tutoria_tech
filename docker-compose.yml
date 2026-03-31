@@ -1,0 +1,72 @@
+services:
+  # ─────────────────────────────────────────────
+  #  BANCO DE DADOS — MariaDB
+  # ─────────────────────────────────────────────
+  db:
+    image: mariadb:11
+    container_name: tutoria_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: mariadb123
+      MYSQL_DATABASE: tutoria
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - tutoria_net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  #  BACKEND — Node.js + Fastify + Prisma
+  # ─────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tutoria_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    command: sh -c "npx prisma generate && npx prisma db push && npx prisma db seed && npm run dev"
+    ports:
+      - "127.0.0.1:3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tutoria_net
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  # ─────────────────────────────────────────────
+  #  FRONTEND — React + Vite + Tailwind CSS
+  # ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tutoria_frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - tutoria_net
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  db_data:
+
+networks:
+  tutoria_net:
+    driver: bridge

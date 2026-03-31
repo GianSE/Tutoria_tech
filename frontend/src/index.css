@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Google Fonts já carregada no index.html ──────────────────────────────── */
+
+/* ─── Variáveis globais ───────────────────────────────────────────────────── */
+:root {
+  --color-bg: #020617;      /* slate-950 */
+  --color-surface: #1e293b; /* slate-800 */
+  --color-border: #334155;  /* slate-700 */
+  --color-text: #f1f5f9;    /* slate-100 */
+  --color-muted: #94a3b8;   /* slate-400 */
+  --color-primary: #7c3aed; /* violet-700 */
+}
+
+/* ─── Reset base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Animações ────────────────────────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+.animate-fade-in  { animation: fade-in  200ms ease forwards; }
+.animate-slide-up { animation: slide-up 220ms ease forwards; }
+
+/* ─── Componentes reutilizáveis ───────────────────────────────────────────── */
+@layer components {
+  .btn-primary {
+    @apply bg-violet-700 hover:bg-violet-600 text-white font-semibold
+           px-5 py-2.5 rounded-xl transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2
+           focus:ring-offset-slate-950 cursor-pointer text-sm;
+  }
+
+  .card {
+    @apply bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg;
+  }
+
+  .input-field {
+    @apply w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5
+           text-slate-100 placeholder-slate-600 text-sm
+           focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-transparent
+           transition-all duration-200;
+  }
+
+  /* Fix select nativo no dark mode */
+  select.input-field option {
+    background-color: #0f172a;
+    color: #f1f5f9;
+  }
+}

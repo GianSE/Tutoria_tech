@@ -1,0 +1,11 @@
+Como o `lucide-react` foi adicionado ao package.json, o Docker precisa instalar a nova dependência.
+
+Execute estes dois comandos no terminal (dentro da pasta /projeto):
+
+  # 1. Para os containers sem apagar os volumes
+  docker compose stop
+
+  # 2. Rebuilda apenas o frontend e sobe tudo novamente
+  docker compose up --build frontend
+
+Após o build terminar, acesse: http://localhost:5173

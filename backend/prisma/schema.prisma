@@ -1,0 +1,145 @@
+// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MENTORA
+  ALUNA
+}
+
+enum TeamStatus {
+  IDEACAO
+  PROTOTIPAGEM
+  EM_DESENVOLVIMENTO
+  CONCLUIDO
+}
+
+enum ScheduleStatus {
+  PENDENTE
+  REALIZADA
+  CANCELADA
+}
+
+enum ScheduleType {
+  MENINAS_NO_LAB
+  RODA_DE_CONVERSA
+  SESSAO_DE_TUTORIA
+  TECHNOVATION_EVENT
+}
+
+enum ProgressStage {
+  INICIO
+  DESENVOLVENDO
+  AVANCADO
+  CONCLUIDO
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(120)
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  role      Role     @default(ALUNA)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mentoring       Team[]            @relation("TeamMentor")
+  teams           Team[]            @relation("TeamStudents")
+  attendances     Attendance[]      @relation("AttendanceUser")
+  progressRecords StudentProgress[] @relation("StudentProgressUser")
+
+  @@map("users")
+}
+
+model Team {
+  id           Int        @id @default(autoincrement())
+  name         String     @db.VarChar(120)
+  thunkableUrl String?    @db.VarChar(500)
+  status       TeamStatus @default(IDEACAO)
+  mentorId     Int
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  mentor          User              @relation("TeamMentor", fields: [mentorId], references: [id])
+  students        User[]            @relation("TeamStudents")
+  progressRecords StudentProgress[]
+
+  @@map("teams")
+}
+
+model Material {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(200)
+  description String?  @db.Text
+  fileUrl     String?  @db.VarChar(500)
+  category    String   @default("Geral") @db.VarChar(100)
+  type        String   @default("Guia") @db.VarChar(50)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("materials")
+}
+
+model Schedule {
+  id        Int            @id @default(autoincrement())
+  title     String         @db.VarChar(200)
+  date      DateTime
+  local     String?        @db.VarChar(200)
+  type      ScheduleType   @default(SESSAO_DE_TUTORIA)
+  status    ScheduleStatus @default(PENDENTE)
+  presencas Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  attendances Attendance[]
+
+  @@map("schedules")
+}
+
+model Attendance {
+  id         Int      @id @default(autoincrement())
+  scheduleId Int
+  userId     Int
+  createdAt  DateTime @default(now())
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user     User     @relation("AttendanceUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, userId])
+  @@map("attendances")
+}
+
+model StudentProgress {
+  id        Int           @id @default(autoincrement())
+  teamId    Int
+  studentId Int
+  stage     ProgressStage @default(INICIO)
+  notes     String?       @db.Text
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  team    Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  student User @relation("StudentProgressUser", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, studentId])
+  @@map("student_progress")
+}
+
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  description String   @db.VarChar(500)
+  createdAt   DateTime @default(now())
+
+  @@map("activity_logs")
+}
