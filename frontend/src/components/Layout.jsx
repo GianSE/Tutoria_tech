@@ -10,6 +10,7 @@ const PAGE_TITLES = {
   "/app/materiais": "Materiais de Apoio",
   "/app/agenda":    "Agenda de Encontros",
   "/app/perfil":    "Meu Perfil",
+  "/app/configuracoes-ia": "Configuracao da IA",
 };
 
 export default function Layout() {

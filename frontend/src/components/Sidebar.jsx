@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Users, BookOpen,
-  FolderOpen, CalendarDays, Sparkles, UserCircle2,
+  FolderOpen, CalendarDays, Sparkles, UserCircle2, Bot,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -35,6 +35,11 @@ const ALL_NAV_ITEMS = [
     to: "/app/perfil",    label: "Meu Perfil",
     icon: UserCircle2,
     roles: ["ADMIN", "MENTORA", "ALUNA"],
+  },
+  {
+    to: "/app/configuracoes-ia", label: "Configuracao da IA",
+    icon: Bot,
+    roles: ["ADMIN"],
   },
 ];
 

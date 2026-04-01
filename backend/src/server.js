@@ -2,6 +2,7 @@ import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
+import multipart from "@fastify/multipart";
 
 import { authRoutes }       from "./routes/auth.js";
 import { userRoutes }       from "./routes/users.js";
@@ -12,6 +13,7 @@ import { dashboardRoutes }  from "./routes/dashboard.js";
 import { attendanceRoutes } from "./routes/attendance.js";
 import { progressRoutes }   from "./routes/progress.js";
 import { chatRoutes }       from "./routes/chat.js";
+import { settingsRoutes }   from "./routes/settings.js";
 
 const app = Fastify({ logger: true });
 
@@ -20,6 +22,10 @@ await app.register(cors, { origin: "http://localhost:5173" });
 
 await app.register(jwt, {
   secret: process.env.JWT_SECRET ?? "fallback_secret_troque_em_producao",
+});
+
+await app.register(multipart, {
+  limits: { fileSize: 2 * 1024 * 1024 },
 });
 
 // Decorator para uso simples em decoradores inline
@@ -37,6 +43,7 @@ await app.register(materialRoutes,   { prefix: "/api/materials" });
 await app.register(scheduleRoutes,   { prefix: "/api/schedules" });
 await app.register(attendanceRoutes, { prefix: "/api/schedules" });  // compartilha prefixo /api/schedules
 await app.register(dashboardRoutes,  { prefix: "/api/dashboard" });
+await app.register(settingsRoutes,   { prefix: "/api/settings" });
 await app.register(chatRoutes,       { prefix: "/api/chat" });
 
 // Health-check
