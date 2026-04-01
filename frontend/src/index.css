@@ -25,6 +25,71 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Tema claro */
+html.theme-light body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+html.theme-light .bg-slate-950 { background-color: #f8fafc !important; }
+html.theme-light .bg-slate-900 { background-color: #ffffff !important; }
+html.theme-light .bg-slate-900\/95 { background-color: rgba(255, 255, 255, 0.95) !important; }
+html.theme-light .bg-slate-900\/80 { background-color: rgba(248, 250, 252, 0.92) !important; }
+html.theme-light .bg-slate-900\/60 { background-color: rgba(248, 250, 252, 0.85) !important; }
+html.theme-light .bg-slate-900\/50 { background-color: rgba(248, 250, 252, 0.85) !important; }
+html.theme-light .bg-slate-800 { background-color: #f1f5f9 !important; }
+html.theme-light .bg-slate-800\/50 { background-color: rgba(226, 232, 240, 0.7) !important; }
+html.theme-light .bg-slate-800\/60 { background-color: rgba(226, 232, 240, 0.7) !important; }
+html.theme-light .bg-slate-800\/80 { background-color: rgba(226, 232, 240, 0.8) !important; }
+html.theme-light .bg-slate-950\/50 { background-color: rgba(241, 245, 249, 0.8) !important; }
+
+html.theme-light .border-slate-800 { border-color: #cbd5e1 !important; }
+html.theme-light .border-slate-700 { border-color: #cbd5e1 !important; }
+html.theme-light .border-slate-700\/50 { border-color: rgba(148, 163, 184, 0.4) !important; }
+html.theme-light .border-slate-700\/60 { border-color: rgba(148, 163, 184, 0.45) !important; }
+
+html.theme-light .text-white { color: #0f172a !important; }
+html.theme-light .text-slate-100 { color: #0f172a !important; }
+html.theme-light .text-slate-200 { color: #1e293b !important; }
+html.theme-light .text-slate-300 { color: #334155 !important; }
+html.theme-light .text-slate-400 { color: #475569 !important; }
+html.theme-light .text-slate-500 { color: #64748b !important; }
+html.theme-light .text-slate-600 { color: #94a3b8 !important; }
+
+html.theme-light .hover\:bg-slate-800:hover { background-color: #e2e8f0 !important; }
+html.theme-light .hover\:text-slate-100:hover { color: #0f172a !important; }
+
+/* Ajustes sutis apenas para tema claro */
+html.theme-light .btn-primary {
+  background-color: #475569;
+  color: #f8fafc;
+}
+html.theme-light .btn-primary:hover {
+  background-color: #334155;
+}
+html.theme-light .text-violet-400 { color: #6366f1 !important; }
+html.theme-light .bg-violet-600\/20 { background-color: rgba(99, 102, 241, 0.12) !important; }
+html.theme-light .border-violet-600\/30 { border-color: rgba(99, 102, 241, 0.2) !important; }
+
+html.theme-light .input-field {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+body,
+header,
+aside,
+main,
+div,
+section,
+button,
+input,
+textarea,
+select {
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
 /* ─── Animações ────────────────────────────────────────────────────────────── */
 @keyframes fade-in {
   from { opacity: 0; }
@@ -42,9 +107,9 @@ body {
 /* ─── Componentes reutilizáveis ───────────────────────────────────────────── */
 @layer components {
   .btn-primary {
-    @apply bg-violet-700 hover:bg-violet-600 text-white font-semibold
+      @apply bg-violet-700 hover:bg-violet-600 text-white font-semibold
            px-5 py-2.5 rounded-xl transition-all duration-200
-           focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2
+        focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2
            focus:ring-offset-slate-950 cursor-pointer text-sm;
   }
 

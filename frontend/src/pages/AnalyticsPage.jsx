@@ -10,11 +10,37 @@ import {
 } from "recharts";
 import { apiFetch } from "../lib/api";
 
+function toDateInputValue(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getDefaultStartDate() {
+  const d = new Date();
+  d.setDate(d.getDate() - 6);
+  return toDateInputValue(d);
+}
+
+function formatPeriodLabel(period, groupBy) {
+  if (!period) return "";
+  if (groupBy === "month") return period;
+  if (groupBy === "week") return period;
+  return period.slice(5);
+}
+
 export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [topTerms, setTopTerms] = useState([]);
-  const [questionsByDay, setQuestionsByDay] = useState([]);
+  const [questionsByPeriod, setQuestionsByPeriod] = useState([]);
+  const [groupBy, setGroupBy] = useState("day");
+
+  const [filters, setFilters] = useState({
+    startDate: getDefaultStartDate(),
+    endDate: toDateInputValue(new Date()),
+    groupBy: "day",
+  });
+
+  const [appliedFilters, setAppliedFilters] = useState(filters);
 
   useEffect(() => {
     let mounted = true;
@@ -24,7 +50,13 @@ export default function AnalyticsPage() {
       setError("");
 
       try {
-        const response = await apiFetch("/api/analytics/top-terms");
+        const params = new URLSearchParams({
+          startDate: appliedFilters.startDate,
+          endDate: appliedFilters.endDate,
+          groupBy: appliedFilters.groupBy,
+        });
+
+        const response = await apiFetch(`/api/analytics/top-terms?${params.toString()}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -33,7 +65,8 @@ export default function AnalyticsPage() {
 
         if (!mounted) return;
         setTopTerms(Array.isArray(data.topTerms) ? data.topTerms : []);
-        setQuestionsByDay(Array.isArray(data.questionsByDay) ? data.questionsByDay : []);
+        setQuestionsByPeriod(Array.isArray(data.questionsByPeriod) ? data.questionsByPeriod : []);
+        setGroupBy(data.groupBy || appliedFilters.groupBy);
       } catch (err) {
         if (!mounted) return;
         setError(err.message || "Falha ao carregar analytics.");
@@ -46,16 +79,31 @@ export default function AnalyticsPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [appliedFilters]);
 
   const chartData = useMemo(
     () =>
-      questionsByDay.map((item) => ({
+      questionsByPeriod.map((item) => ({
         ...item,
-        label: item.date?.slice(5) || "",
+        label: formatPeriodLabel(item.period, groupBy),
       })),
-    [questionsByDay],
+    [questionsByPeriod, groupBy],
   );
+
+  const chartTitle =
+    groupBy === "week"
+      ? "Perguntas por Semana"
+      : groupBy === "month"
+        ? "Perguntas por Mês"
+        : "Perguntas por Dia";
+
+  function handleApplyFilters() {
+    if (filters.startDate > filters.endDate) {
+      setError("A data inicial não pode ser maior que a data final.");
+      return;
+    }
+    setAppliedFilters(filters);
+  }
 
   return (
     <section className="space-y-6">
@@ -64,6 +112,51 @@ export default function AnalyticsPage() {
         <p className="text-slate-400 text-sm mt-1">
           Monitoramento das perguntas feitas no chat e termos mais buscados.
         </p>
+      </div>
+
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+          <label className="text-sm text-slate-300">
+            Data inicial
+            <input
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => setFilters((prev) => ({ ...prev, startDate: e.target.value }))}
+              className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-slate-200"
+            />
+          </label>
+
+          <label className="text-sm text-slate-300">
+            Data final
+            <input
+              type="date"
+              value={filters.endDate}
+              onChange={(e) => setFilters((prev) => ({ ...prev, endDate: e.target.value }))}
+              className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-slate-200"
+            />
+          </label>
+
+          <label className="text-sm text-slate-300">
+            Agrupamento
+            <select
+              value={filters.groupBy}
+              onChange={(e) => setFilters((prev) => ({ ...prev, groupBy: e.target.value }))}
+              className="mt-1 w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-slate-200"
+            >
+              <option value="day">Por dia</option>
+              <option value="week">Por semana</option>
+              <option value="month">Por mês</option>
+            </select>
+          </label>
+
+          <button
+            type="button"
+            onClick={handleApplyFilters}
+            className="h-[42px] rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-medium"
+          >
+            Aplicar filtro
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -95,7 +188,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <h2 className="text-lg font-semibold text-white mb-4">Perguntas por Dia (7 dias)</h2>
+          <h2 className="text-lg font-semibold text-white mb-4">{chartTitle}</h2>
 
           {loading ? (
             <p className="text-sm text-slate-400">Carregando grafico...</p>

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, UserCircle2, AlertTriangle } from "lucide-react";
+import { LogOut, UserCircle2, AlertTriangle, Menu } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import NotificationBell from "./NotificationBell";
 import Modal from "./Modal";
 
-export default function Header({ pageTitle }) {
+export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -17,12 +17,27 @@ export default function Header({ pageTitle }) {
 
   return (
     <>
-      <header className="h-16 bg-slate-900/80 backdrop-blur border-b border-slate-800
-                         fixed top-0 left-64 right-0 z-10 flex items-center justify-between px-6">
-        {/* Page title */}
-        <h1 className="text-slate-100 font-semibold text-base tracking-tight">
-          {pageTitle}
-        </h1>
+      <header
+        className={`h-16 bg-slate-900/80 backdrop-blur border-b border-slate-800
+                         fixed top-0 right-0 z-10 flex items-center justify-between pr-6 transition-all duration-300 ${
+                           isSidebarExpanded ? "left-64" : "left-16"
+                         }`}
+      >
+        <div className="flex items-center gap-3 pl-4">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+            title="Expandir/retrair menu"
+          >
+            <Menu size={18} />
+          </button>
+
+          {/* Page title */}
+          <h1 className="text-slate-100 font-semibold text-base tracking-tight">
+            {pageTitle}
+          </h1>
+        </div>
 
         {/* Right side */}
         <div className="flex items-center gap-3">

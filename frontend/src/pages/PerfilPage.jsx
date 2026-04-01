@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { UserCircle2, Lock, Save, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { apiFetch } from "../lib/api";
 
 const ROLE_LABELS = { ADMIN: "Administrador", MENTORA: "Mentora", ALUNA: "Aluna" };
@@ -12,6 +13,7 @@ const ROLE_STYLES = {
 
 export default function PerfilPage() {
   const { user, login, token } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   const [name,        setName]        = useState(user?.name  ?? "");
   const [password,    setPassword]    = useState("");
@@ -71,8 +73,21 @@ export default function PerfilPage() {
                         flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
           {user?.name?.charAt(0)?.toUpperCase() ?? "?"}
         </div>
-        <div>
-          <p className="text-white font-bold text-lg">{user?.name}</p>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-white font-bold text-lg truncate">{user?.name}</p>
+            <label className="text-xs text-slate-400 flex items-center gap-2 ml-auto shrink-0">
+              Tema
+              <select
+                value={theme}
+                onChange={(e) => setTheme(e.target.value)}
+                className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200"
+              >
+                <option value="dark">Escuro</option>
+                <option value="light">Claro</option>
+              </select>
+            </label>
+          </div>
           <p className="text-slate-400 text-sm">{user?.email}</p>
           <span className={`inline-block mt-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full ${ROLE_STYLES[user?.role]}`}>
             {ROLE_LABELS[user?.role] ?? user?.role}

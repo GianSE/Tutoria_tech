@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
@@ -16,21 +17,32 @@ const PAGE_TITLES = {
 };
 
 export default function Layout() {
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const { pathname } = useLocation();
   const title = PAGE_TITLES[pathname] ?? "Tutoria Meninas";
   const hideFloatingChatWidget = pathname === "/app/rose-chat";
 
   return (
     <div className="min-h-screen bg-slate-950 flex">
-      <Sidebar />
+      <Sidebar isExpanded={isSidebarExpanded} />
 
-      {/* Main content — offset pela sidebar (w-64) */}
-      <div className="flex-1 ml-64 flex flex-col relative">
-        <Header pageTitle={title} />
+      {/* Main content — sem offset lateral; sidebar funciona como overlay */}
+      <div
+        className={`flex-1 flex flex-col relative transition-all duration-300 ${
+          isSidebarExpanded ? "ml-64" : "ml-16"
+        }`}
+      >
+        <Header
+          pageTitle={title}
+          isSidebarExpanded={isSidebarExpanded}
+          onToggleSidebar={() => setIsSidebarExpanded((prev) => !prev)}
+        />
 
-        {/* Page area — com padding-top para não ficar atrás do header fixo */}
-        <main className="flex-1 pt-16 p-6 overflow-y-auto relative">
-          <Outlet />
+        {/* Page area centralizada para melhor uso do espaço */}
+        <main className="flex-1 pt-20 p-6 overflow-y-auto relative">
+          <div className="w-full max-w-7xl mx-auto">
+            <Outlet />
+          </div>
         </main>
       </div>
       
