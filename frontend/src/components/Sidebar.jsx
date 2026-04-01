@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Users, BookOpen,
-  FolderOpen, CalendarDays, Sparkles, UserCircle2, Bot, BarChart3,
+  FolderOpen, CalendarDays, Sparkles, UserCircle2, Bot, BarChart3, MessageCircle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -12,14 +12,9 @@ const ALL_NAV_ITEMS = [
     roles: ["ADMIN", "MENTORA", "ALUNA"],
   },
   {
-    to: "/app/analytics-ia", label: "Analytics IA",
-    icon: BarChart3,
-    roles: ["ADMIN"],
-  },
-  {
-    to: "/app/usuarios",  label: "Usuários",
-    icon: Users,
-    roles: ["ADMIN"],                       // ← apenas ADMIN
+    to: "/app/rose-chat", label: "Conversa com Rose",
+    icon: MessageCircle,
+    roles: ["ADMIN", "MENTORA", "ALUNA"],
   },
   {
     to: "/app/tutorias",  label: "Tutorias",
@@ -40,6 +35,16 @@ const ALL_NAV_ITEMS = [
     to: "/app/perfil",    label: "Meu Perfil",
     icon: UserCircle2,
     roles: ["ADMIN", "MENTORA", "ALUNA"],
+  },
+  {
+    to: "/app/usuarios",  label: "Usuários",
+    icon: Users,
+    roles: ["ADMIN"],                       // ← apenas ADMIN
+  },
+  {
+    to: "/app/analytics-ia", label: "Analytics IA",
+    icon: BarChart3,
+    roles: ["ADMIN"],
   },
   {
     to: "/app/configuracoes-ia", label: "Configuracao da IA",

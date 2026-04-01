@@ -5,6 +5,7 @@ import ChatWidget from "./ChatWidget";
 
 const PAGE_TITLES = {
   "/app/dashboard": "Dashboard",
+  "/app/rose-chat": "Conversa com Rose",
   "/app/usuarios":  "Usuários",
   "/app/tutorias":  "Tutorias",
   "/app/materiais": "Materiais de Apoio",
@@ -17,6 +18,7 @@ const PAGE_TITLES = {
 export default function Layout() {
   const { pathname } = useLocation();
   const title = PAGE_TITLES[pathname] ?? "Tutoria Meninas";
+  const hideFloatingChatWidget = pathname === "/app/rose-chat";
 
   return (
     <div className="min-h-screen bg-slate-950 flex">
@@ -33,7 +35,7 @@ export default function Layout() {
       </div>
       
       {/* Assistente IA */}
-      <ChatWidget />
+      {!hideFloatingChatWidget && <ChatWidget />}
     </div>
   );
 }

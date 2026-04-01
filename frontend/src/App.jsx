@@ -11,6 +11,7 @@ import AgendaPage from "./pages/AgendaPage";
 import PerfilPage from "./pages/PerfilPage";
 import ConfiguracoesIAPage from "./pages/ConfiguracoesIAPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import RoseChatPage from "./pages/RoseChatPage";
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route element={<PrivateRoute />}>
           <Route element={<Layout />}>
             <Route path="/app/dashboard" element={<DashboardPage />} />
+            <Route path="/app/rose-chat" element={<RoseChatPage />} />
             <Route path="/app/materiais" element={<MateriaisPage />} />
             <Route path="/app/agenda"    element={<AgendaPage />} />
             <Route path="/app/perfil"    element={<PerfilPage />} />
