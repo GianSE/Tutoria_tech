@@ -38,22 +38,36 @@ export async function chatRoutes(fastify, options) {
         });
       }
 
-      const knowledgeDocs = await prisma.knowledgeDocument.findMany({
-        orderBy: { createdAt: "asc" },
-        select: { content: true },
-      });
+      const genAI = new GoogleGenerativeAI(apiKey);
+      let ragContext = "";
 
-      const knowledgeTexts = knowledgeDocs
-        .map((doc) => (doc.content || "").trim())
-        .filter(Boolean)
-        .join("\n\n");
+      try {
+        const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+        const embeddingResult = await embeddingModel.embedContent(message);
+        const userVectorValues = embeddingResult?.embedding?.values ?? [];
 
-      if (knowledgeTexts) {
-        systemInstruction += `\n\n--- BASE DE CONHECIMENTO ---\n${knowledgeTexts}`;
+        if (Array.isArray(userVectorValues) && userVectorValues.length > 0) {
+          const nearestChunks = await prisma.$queryRaw`
+            SELECT content
+            FROM knowledge_chunks
+            ORDER BY embedding <=> ${userVectorValues}::vector
+            LIMIT 5
+          `;
+
+          ragContext = (nearestChunks ?? [])
+            .map((row) => row.content)
+            .filter(Boolean)
+            .join("\n\n");
+        }
+      } catch (embeddingError) {
+        req.log.warn(embeddingError, "Falha ao gerar embedding/buscar contexto RAG. Seguindo sem contexto vetorial.");
+      }
+
+      if (ragContext) {
+        systemInstruction += `\n\n--- BASE DE CONHECIMENTO ---\n${ragContext}`;
       }
 
       // 3. Inicializar a IA
-      const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
         model: "gemini-2.5-flash",
         systemInstruction,

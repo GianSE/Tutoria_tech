@@ -1,11 +1,13 @@
 // This is your Prisma schema file
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -147,7 +149,7 @@ model ActivityLog {
 model SystemSetting {
   id        Int      @id @default(autoincrement())
   key       String   @unique @db.VarChar(120)
-  value     String   @db.LongText
+  value     String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -155,19 +157,32 @@ model SystemSetting {
 }
 
 model KnowledgeDocument {
-  id        Int      @id @default(autoincrement())
-  filename  String   @db.VarChar(255)
-  content   String   @db.LongText
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int              @id @default(autoincrement())
+  filename  String           @db.VarChar(255)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  chunks    KnowledgeChunk[]
 
   @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id         String            @id @default(uuid())
+  documentId Int
+  document   KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  content    String            @db.Text
+  embedding  Unsupported("vector(768)")?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@index([documentId])
+  @@map("knowledge_chunks")
 }
 
 model ChatAnalytics {
   id        Int      @id @default(autoincrement())
   question  String   @db.Text
-  role      String   @default("ALUNA") @db.VarChar(50)
+  role      String   @db.VarChar(50)
   createdAt DateTime @default(now())
 
   @@map("chat_analytics")

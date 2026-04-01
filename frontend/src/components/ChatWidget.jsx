@@ -14,6 +14,11 @@ const formatText = (text) => {
 };
 
 export default function ChatWidget() {
+  const quickSuggestions = [
+    "Como usar a Rose?",
+    "Dúvidas sobre o Projeto",
+  ];
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: "model", text: "Olá! Eu sou a Rose, a assistente virtual do Tutoria Tech. Como posso ajudar-te hoje? 🌟" }
@@ -29,12 +34,8 @@ export default function ChatWidget() {
     }
   }, [messages, isOpen]);
 
-  const handleSend = async (e) => {
-    if (e?.preventDefault) e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMsg = input.trim();
-    setInput("");
+  const sendUserMessage = async (userMsg) => {
+    if (!userMsg?.trim() || isLoading) return;
     
     // Optimistic UI update
     const newMessages = [...messages, { role: "user", text: userMsg }];
@@ -63,7 +64,8 @@ export default function ChatWidget() {
       if (response.ok) {
         setMessages([...newMessages, { role: "model", text: data.response }]);
       } else {
-        setMessages([...newMessages, { role: "model", text: "Desculpa, ocorreu um erro ao contactar o servidor. 😢" }]);
+        const serverMessage = data?.message || "Desculpa, ocorreu um erro ao contactar o servidor. 😢";
+        setMessages([...newMessages, { role: "model", text: serverMessage }]);
       }
     } catch (err) {
       console.error(err);
@@ -72,6 +74,17 @@ export default function ChatWidget() {
       setIsLoading(false);
     }
   };
+
+  const handleSend = async (e) => {
+    if (e?.preventDefault) e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const userMsg = input.trim();
+    setInput("");
+    await sendUserMessage(userMsg);
+  };
+
+  const showSuggestions = messages.filter((msg) => msg.role === "user").length === 0;
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
@@ -98,6 +111,22 @@ export default function ChatWidget() {
 
           {/* Messages */}
           <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-slate-900/50">
+            {showSuggestions && (
+              <div className="flex flex-wrap gap-2">
+                {quickSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => sendUserMessage(suggestion)}
+                    disabled={isLoading}
+                    className="text-xs px-3 py-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20 transition-colors disabled:opacity-50"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div 

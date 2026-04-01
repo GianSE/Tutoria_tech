@@ -21,6 +21,13 @@ function preprocessKnowledgeContent(text = "") {
     .trim();
 }
 
+function splitIntoChunks(text = "") {
+  return text
+    .split(/\n\n+/g)
+    .map((p) => p.trim())
+    .filter((p) => p.length >= 50);
+}
+
 export async function settingsRoutes(app) {
   const adminOnly = { onRequest: [requireRole(app, "ADMIN")] };
 
@@ -149,10 +156,30 @@ export async function settingsRoutes(app) {
         return reply.status(400).send({ message: "O arquivo enviado esta vazio." });
       }
 
+      const chunks = splitIntoChunks(content);
+      if (chunks.length === 0) {
+        return reply.status(400).send({
+          message: "Nao foi possivel extrair paragrafos validos do markdown.",
+        });
+      }
+
+      const keySetting = await prisma.systemSetting.findUnique({
+        where: { key: "GEMINI_API_KEY" },
+      });
+      const apiKey = keySetting?.value?.trim() || "";
+
+      if (!apiKey) {
+        return reply.status(503).send({
+          message: "A IA nao esta configurada. Defina a Gemini API Key no painel.",
+        });
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+
       const created = await prisma.knowledgeDocument.create({
         data: {
           filename: file.filename,
-          content,
         },
         select: {
           id: true,
@@ -160,6 +187,20 @@ export async function settingsRoutes(app) {
           createdAt: true,
         },
       });
+
+      for (const chunkText of chunks) {
+        const embedding = await embeddingModel.embedContent(chunkText);
+        const values = embedding?.embedding?.values ?? [];
+
+        if (!Array.isArray(values) || values.length === 0) {
+          continue;
+        }
+
+        await prisma.$executeRaw`
+          INSERT INTO knowledge_chunks (id, "documentId", content, embedding)
+          VALUES (gen_random_uuid(), ${created.id}, ${chunkText}, ${embedding.embedding.values}::vector)
+        `;
+      }
 
       return reply.status(201).send({
         message: "Arquivo enviado com sucesso.",

@@ -1,22 +1,23 @@
 services:
   # ─────────────────────────────────────────────
-  #  BANCO DE DADOS — MariaDB
+  #  BANCO DE DADOS — PostgreSQL + pgvector
   # ─────────────────────────────────────────────
   db:
-    image: mariadb:11
+    image: pgvector/pgvector:pg16
     container_name: tutoria_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: mariadb123
-      MYSQL_DATABASE: tutoria
+      POSTGRES_USER: tutoriatech_user
+      POSTGRES_PASSWORD: tutoriatech_pass
+      POSTGRES_DB: tutoriatech
     ports:
-      - "127.0.0.1:3307:3306"
+      - "5432:5432"
     volumes:
-      - db_data:/var/lib/mysql
+      - pg_data:/var/lib/postgresql/data
     networks:
       - tutoria_net
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: ["CMD-SHELL", "pg_isready -U tutoriatech_user -d tutoriatech"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -33,9 +34,11 @@ services:
     restart: unless-stopped
     env_file:
       - ./backend/.env
-    command: sh -c "npx prisma generate && npx prisma db push && npx prisma db seed && npm run dev"
+    # Adicionamos "npx prisma studio --host 0.0.0.0 &" logo antes do "npm run dev"
+    command: sh -c "npx prisma generate && npx prisma db push && npx prisma db seed && npx prisma studio --hostname 0.0.0.0 & npm run dev"
     ports:
-      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:3001:3001" # Porta para a API do backend
+      - "127.0.0.1:5555:5555" # Porta para o Prisma Studio
     depends_on:
       db:
         condition: service_healthy
@@ -65,7 +68,7 @@ services:
       - /app/node_modules
 
 volumes:
-  db_data:
+  pg_data:
 
 networks:
   tutoria_net:
