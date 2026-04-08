@@ -1,8 +1,11 @@
 import prisma from "../lib/prisma.js";
 import { logActivity } from "../lib/activity.js";
+import { requireRole } from "../lib/requireRole.js";
 
 const VALID_TYPES   = ["MENINAS_NO_LAB", "RODA_DE_CONVERSA", "SESSAO_DE_TUTORIA", "TECHNOVATION_EVENT"];
 const VALID_STATUS  = ["PENDENTE", "REALIZADA", "CANCELADA"];
+
+const adminOrMentor = (app) => requireRole(app, "ADMIN", "MENTORA");
 
 /**
  * CRUD de Agendamentos / Sessões
@@ -20,28 +23,47 @@ export async function scheduleRoutes(app) {
     const schedules = await prisma.schedule.findMany({
       where,
       orderBy: { date: "asc" },
+      include: {
+        attendances: {
+          include: { user: { select: { id: true, name: true, role: true } } },
+        },
+      },
     });
-    return reply.send(schedules);
+
+    const now = new Date();
+    const result = schedules.map((s) => ({
+      ...s,
+      isOverdue: s.status === "PENDENTE" && s.date < now,
+    }));
+
+    return reply.send(result);
   });
 
   // ── GET /:id — busca agendamento por ID ──────────────────────────────────────
   app.get("/:id", async (req, reply) => {
     const schedule = await prisma.schedule.findUnique({
       where: { id: Number(req.params.id) },
+      include: {
+        attendances: {
+          include: { user: { select: { id: true, name: true, role: true } } },
+        },
+      },
     });
     if (!schedule) return reply.status(404).send({ message: "Agendamento não encontrado." });
-    return reply.send(schedule);
+    const now = new Date();
+    return reply.send({ ...schedule, isOverdue: schedule.status === "PENDENTE" && schedule.date < now });
   });
 
-  // ── POST / — cria agendamento ─────────────────────────────────────────────────
+  // ── POST / — cria agendamento (ADMIN / MENTORA) ───────────────────────────────
   app.post("/", {
+    onRequest: [adminOrMentor(app)],
     schema: {
       body: {
         type: "object",
         required: ["title", "date"],
         properties: {
           title:     { type: "string" },
-          date:      { type: "string" },   // ISO 8601
+          date:      { type: "string" },
           local:     { type: "string" },
           type:      { type: "string", enum: VALID_TYPES },
           status:    { type: "string", enum: VALID_STATUS },
@@ -67,8 +89,9 @@ export async function scheduleRoutes(app) {
     return reply.status(201).send(schedule);
   });
 
-  // ── PUT /:id — atualiza agendamento ──────────────────────────────────────────
+  // ── PUT /:id — atualiza agendamento (ADMIN / MENTORA) ────────────────────────
   app.put("/:id", {
+    onRequest: [adminOrMentor(app)],
     schema: {
       body: {
         type: "object",
@@ -108,8 +131,10 @@ export async function scheduleRoutes(app) {
     }
   });
 
-  // ── DELETE /:id — remove agendamento ─────────────────────────────────────────
-  app.delete("/:id", async (req, reply) => {
+  // ── DELETE /:id — remove agendamento (ADMIN / MENTORA) ───────────────────────
+  app.delete("/:id", {
+    onRequest: [adminOrMentor(app)],
+  }, async (req, reply) => {
     const id = Number(req.params.id);
     try {
       await prisma.schedule.delete({ where: { id } });

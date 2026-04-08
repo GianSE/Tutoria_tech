@@ -11,7 +11,7 @@ export async function userRoutes(app) {
   app.get("/", async (_req, reply) => {
     const users = await prisma.user.findMany({
       select: {
-        id: true, name: true, email: true, role: true, createdAt: true,
+        id: true, name: true, email: true, role: true, birthDate: true, createdAt: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -35,23 +35,24 @@ export async function userRoutes(app) {
         type: "object",
         required: ["name", "email", "password", "role"],
         properties: {
-          name:     { type: "string" },
-          email:    { type: "string", format: "email" },
-          password: { type: "string", minLength: 4 },
-          role:     { type: "string", enum: ["ADMIN", "MENTORA", "ALUNA"] },
+          name:      { type: "string" },
+          email:     { type: "string", format: "email" },
+          password:  { type: "string", minLength: 4 },
+          role:      { type: "string", enum: ["ADMIN", "MENTORA", "ALUNA"] },
+          birthDate: { type: "string" },
         },
       },
     },
   }, async (req, reply) => {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, birthDate } = req.body;
 
     const exists = await prisma.user.findUnique({ where: { email } });
     if (exists) return reply.status(409).send({ message: "E-mail já cadastrado." });
 
     const hashed = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { name, email, password: hashed, role },
-      select: { id: true, name: true, email: true, role: true, createdAt: true },
+      data: { name, email, password: hashed, role, birthDate: birthDate ? new Date(birthDate) : null },
+      select: { id: true, name: true, email: true, role: true, birthDate: true, createdAt: true },
     });
 
     await logActivity(`Novo usuário cadastrado: ${name} (${role})`);
@@ -64,28 +65,30 @@ export async function userRoutes(app) {
       body: {
         type: "object",
         properties: {
-          name:     { type: "string" },
-          email:    { type: "string", format: "email" },
-          password: { type: "string", minLength: 4 },
-          role:     { type: "string", enum: ["ADMIN", "MENTORA", "ALUNA"] },
+          name:      { type: "string" },
+          email:     { type: "string", format: "email" },
+          password:  { type: "string", minLength: 4 },
+          role:      { type: "string", enum: ["ADMIN", "MENTORA", "ALUNA"] },
+          birthDate: { type: "string" },
         },
       },
     },
   }, async (req, reply) => {
     const id = Number(req.params.id);
-    const { name, email, role, password } = req.body;
+    const { name, email, role, password, birthDate } = req.body;
 
     const data = {};
-    if (name)     data.name  = name;
-    if (email)    data.email = email;
-    if (role)     data.role  = role;
-    if (password) data.password = await bcrypt.hash(password, 10);
+    if (name)                    data.name      = name;
+    if (email)                   data.email     = email;
+    if (role)                    data.role      = role;
+    if (password)                data.password  = await bcrypt.hash(password, 10);
+    if (birthDate !== undefined) data.birthDate = birthDate ? new Date(birthDate) : null;
 
     try {
       const user = await prisma.user.update({
         where: { id },
         data,
-        select: { id: true, name: true, email: true, role: true, createdAt: true },
+        select: { id: true, name: true, email: true, role: true, birthDate: true, createdAt: true },
       });
       return reply.send(user);
     } catch {

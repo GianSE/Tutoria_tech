@@ -1,5 +1,8 @@
 import prisma from "../lib/prisma.js";
 import { logActivity } from "../lib/activity.js";
+import { requireRole } from "../lib/requireRole.js";
+
+const adminOnly = (app) => requireRole(app, "ADMIN");
 
 /**
  * CRUD de Equipes (Tutorias)
@@ -31,18 +34,21 @@ export async function teamRoutes(app) {
     return reply.send(team);
   });
 
-  // ── POST / — cria equipe ─────────────────────────────────────────────────────
+  // ── POST / — cria equipe (ADMIN) ─────────────────────────────────────────────
   app.post("/", {
+    onRequest: [adminOnly(app)],
     schema: {
       body: {
         type: "object",
         required: ["name", "mentorId"],
         properties: {
-          name:        { type: "string" },
-          mentorId:    { type: "integer" },
-          studentIds:  { type: "array", items: { type: "integer" } },
-          thunkableUrl:{ type: "string" },
-          status:      {
+          name:         { type: "string" },
+          mentorId:     { type: "integer" },
+          studentIds:   { type: "array", items: { type: "integer" } },
+          thunkableUrl: { type: "string" },
+          telegramUrl:  { type: "string" },
+          whatsappUrl:  { type: "string" },
+          status:       {
             type: "string",
             enum: ["IDEACAO", "PROTOTIPAGEM", "EM_DESENVOLVIMENTO", "CONCLUIDO"],
           },
@@ -50,9 +56,8 @@ export async function teamRoutes(app) {
       },
     },
   }, async (req, reply) => {
-    const { name, mentorId, studentIds = [], thunkableUrl, status } = req.body;
+    const { name, mentorId, studentIds = [], thunkableUrl, telegramUrl, whatsappUrl, status } = req.body;
 
-    // Valida que a mentora existe e tem o papel correto
     const mentor = await prisma.user.findUnique({ where: { id: mentorId } });
     if (!mentor || mentor.role !== "MENTORA") {
       return reply.status(400).send({ message: "mentorId deve referenciar um usuário com papel MENTORA." });
@@ -62,6 +67,8 @@ export async function teamRoutes(app) {
       data: {
         name,
         thunkableUrl,
+        telegramUrl: telegramUrl || null,
+        whatsappUrl: whatsappUrl || null,
         status: status ?? "IDEACAO",
         mentor:   { connect: { id: mentorId } },
         students: { connect: studentIds.map((id) => ({ id })) },
@@ -76,8 +83,9 @@ export async function teamRoutes(app) {
     return reply.status(201).send(team);
   });
 
-  // ── PUT /:id — atualiza equipe ───────────────────────────────────────────────
+  // ── PUT /:id — atualiza equipe (ADMIN) ───────────────────────────────────────
   app.put("/:id", {
+    onRequest: [adminOnly(app)],
     schema: {
       body: {
         type: "object",
@@ -86,6 +94,8 @@ export async function teamRoutes(app) {
           mentorId:     { type: "integer" },
           studentIds:   { type: "array", items: { type: "integer" } },
           thunkableUrl: { type: "string" },
+          telegramUrl:  { type: "string" },
+          whatsappUrl:  { type: "string" },
           status:       {
             type: "string",
             enum: ["IDEACAO", "PROTOTIPAGEM", "EM_DESENVOLVIMENTO", "CONCLUIDO"],
@@ -95,9 +105,8 @@ export async function teamRoutes(app) {
     },
   }, async (req, reply) => {
     const id = Number(req.params.id);
-    const { name, mentorId, studentIds, thunkableUrl, status } = req.body;
+    const { name, mentorId, studentIds, thunkableUrl, telegramUrl, whatsappUrl, status } = req.body;
 
-    // Valida mentora se informada
     if (mentorId) {
       const mentor = await prisma.user.findUnique({ where: { id: mentorId } });
       if (!mentor || mentor.role !== "MENTORA") {
@@ -106,12 +115,13 @@ export async function teamRoutes(app) {
     }
 
     const data = {};
-    if (name)         data.name         = name;
+    if (name)                    data.name         = name;
     if (thunkableUrl !== undefined) data.thunkableUrl = thunkableUrl;
-    if (status)       data.status       = status;
-    if (mentorId)     data.mentor       = { connect: { id: mentorId } };
-    // `set` substitui completamente a lista de alunas
-    if (studentIds)   data.students     = { set: studentIds.map((sid) => ({ id: sid })) };
+    if (telegramUrl  !== undefined) data.telegramUrl  = telegramUrl || null;
+    if (whatsappUrl  !== undefined) data.whatsappUrl  = whatsappUrl || null;
+    if (status)                  data.status       = status;
+    if (mentorId)                data.mentor       = { connect: { id: mentorId } };
+    if (studentIds)              data.students     = { set: studentIds.map((sid) => ({ id: sid })) };
 
     try {
       const team = await prisma.team.update({
@@ -128,8 +138,10 @@ export async function teamRoutes(app) {
     }
   });
 
-  // ── DELETE /:id — remove equipe ──────────────────────────────────────────────
-  app.delete("/:id", async (req, reply) => {
+  // ── DELETE /:id — remove equipe (ADMIN) ──────────────────────────────────────
+  app.delete("/:id", {
+    onRequest: [adminOnly(app)],
+  }, async (req, reply) => {
     const id = Number(req.params.id);
     try {
       const team = await prisma.team.delete({ where: { id } });

@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { Users, ExternalLink, Plus, Pencil, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { Users, ExternalLink, Plus, Pencil, Trash2, Loader2, AlertCircle, MessageCircle, Send } from "lucide-react";
 import Modal from "../components/Modal";
+import { useAuth } from "../context/AuthContext";
+import { apiFetch } from "../lib/api";
 
 const STATUS_STYLE = {
   IDEACAO:           "bg-amber-500/15  text-amber-400  border-amber-500/30",
@@ -16,9 +18,15 @@ const STATUS_LABELS = {
   CONCLUIDO: "Concluído",
 };
 
-const EMPTY_FORM = { name: "", mentorId: "", thunkableUrl: "", status: "IDEACAO", studentIds: [] };
+const EMPTY_FORM = {
+  name: "", mentorId: "", telegramUrl: "", whatsappUrl: "",
+  status: "IDEACAO", studentIds: [],
+};
 
 export default function TutoriasPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
   const [teams, setTeams]           = useState([]);
   const [allUsers, setAllUsers]     = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -36,7 +44,7 @@ export default function TutoriasPage() {
 
   const fetchTeams = useCallback(async () => {
     try {
-      const res = await fetch("/api/teams");
+      const res = await apiFetch("/api/teams");
       setTeams(await res.json());
     } finally {
       setLoading(false);
@@ -46,7 +54,7 @@ export default function TutoriasPage() {
   useEffect(() => { fetchTeams(); }, [fetchTeams]);
 
   useEffect(() => {
-    fetch("/api/users")
+    apiFetch("/api/users")
       .then((r) => r.json())
       .then(setAllUsers)
       .finally(() => setUsersLoading(false));
@@ -62,11 +70,12 @@ export default function TutoriasPage() {
   const openEdit = (team) => {
     setEditingId(team.id);
     setForm({
-      name: team.name,
-      mentorId: String(team.mentorId),
-      thunkableUrl: team.thunkableUrl ?? "",
-      status: team.status,
-      studentIds: team.students?.map((s) => s.id) ?? [],
+      name:        team.name,
+      mentorId:    String(team.mentorId),
+      telegramUrl:  team.telegramUrl  ?? "",
+      whatsappUrl:  team.whatsappUrl  ?? "",
+      status:       team.status,
+      studentIds:   team.students?.map((s) => s.id) ?? [],
     });
     setFormError("");
     setModalOpen(true);
@@ -89,12 +98,13 @@ export default function TutoriasPage() {
       const payload = {
         name:         form.name,
         mentorId:     Number(form.mentorId),
-        thunkableUrl: form.thunkableUrl || null,
+        telegramUrl:  form.telegramUrl  || null,
+        whatsappUrl:  form.whatsappUrl  || null,
         status:       form.status,
         studentIds:   form.studentIds,
       };
 
-      const res = await fetch(
+      const res = await apiFetch(
         editingId ? `/api/teams/${editingId}` : "/api/teams",
         {
           method: editingId ? "PUT" : "POST",
@@ -117,7 +127,7 @@ export default function TutoriasPage() {
     if (!confirmDel) return;
     setDeleting(true);
     try {
-      await fetch(`/api/teams/${confirmDel.id}`, { method: "DELETE" });
+      await apiFetch(`/api/teams/${confirmDel.id}`, { method: "DELETE" });
       await fetchTeams();
       setConfirmDel(null);
     } finally {
@@ -132,9 +142,11 @@ export default function TutoriasPage() {
           <h2 className="text-2xl font-bold text-white">Tutorias</h2>
           <p className="text-slate-400 text-sm mt-0.5">Relação de equipes, mentoras, alunas e apps.</p>
         </div>
-        <button onClick={openNew} className="btn-primary flex items-center gap-2 self-start sm:self-auto">
-          <Plus size={16} /> Nova Equipe
-        </button>
+        {isAdmin && (
+          <button onClick={openNew} className="btn-primary flex items-center gap-2 self-start sm:self-auto">
+            <Plus size={16} /> Nova Equipe
+          </button>
+        )}
       </div>
 
       {/* Cards */}
@@ -151,9 +163,11 @@ export default function TutoriasPage() {
       ) : teams.length === 0 ? (
         <div className="card text-center py-12">
           <p className="text-slate-500 text-sm">Nenhuma equipe cadastrada ainda.</p>
-          <button onClick={openNew} className="btn-primary mt-4 inline-flex items-center gap-2">
-            <Plus size={15} /> Criar primeira equipe
-          </button>
+          {isAdmin && (
+            <button onClick={openNew} className="btn-primary mt-4 inline-flex items-center gap-2">
+              <Plus size={15} /> Criar primeira equipe
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -169,18 +183,20 @@ export default function TutoriasPage() {
                     {STATUS_LABELS[team.status] ?? team.status}
                   </span>
                 </div>
-                <div className="flex gap-1">
-                  <button onClick={() => openEdit(team)}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center
-                               text-slate-500 hover:bg-slate-700 hover:text-slate-200 transition-all">
-                    <Pencil size={14} />
-                  </button>
-                  <button onClick={() => setConfirmDel({ id: team.id, name: team.name })}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center
-                               text-slate-500 hover:bg-red-500/15 hover:text-red-400 transition-all">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div className="flex gap-1">
+                    <button onClick={() => openEdit(team)}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center
+                                 text-slate-500 hover:bg-slate-700 hover:text-slate-200 transition-all">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => setConfirmDel({ id: team.id, name: team.name })}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center
+                                 text-slate-500 hover:bg-red-500/15 hover:text-red-400 transition-all">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Mentora */}
@@ -216,17 +232,25 @@ export default function TutoriasPage() {
                 </div>
               </div>
 
-              {/* Thunkable */}
-              <div className="mt-auto pt-3 border-t border-slate-800">
-                {team.thunkableUrl ? (
-                  <a href={team.thunkableUrl} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-violet-400 hover:text-violet-300 text-sm font-medium transition-colors">
-                    <ExternalLink size={14} /> Ver app no Thunkable
-                  </a>
-                ) : (
-                  <span className="text-slate-600 text-sm italic">App ainda não vinculado</span>
-                )}
-              </div>
+              {/* Social Icons */}
+              {(team.telegramUrl || team.whatsappUrl) && (
+                <div className="mt-auto pt-3 border-t border-slate-800 flex gap-2">
+                  {team.whatsappUrl && (
+                    <a href={team.whatsappUrl} target="_blank" rel="noopener noreferrer"
+                      className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center hover:bg-emerald-500/20 transition-all"
+                      title="WhatsApp">
+                      <MessageCircle size={16} />
+                    </a>
+                  )}
+                  {team.telegramUrl && (
+                    <a href={team.telegramUrl} target="_blank" rel="noopener noreferrer"
+                      className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center hover:bg-sky-500/20 transition-all"
+                      title="Telegram">
+                      <Send size={16} />
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -242,7 +266,6 @@ export default function TutoriasPage() {
               value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
           </div>
 
-          {/* Mentora — select dinâmico */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">Mentora responsável</label>
             {usersLoading ? (
@@ -263,7 +286,6 @@ export default function TutoriasPage() {
             )}
           </div>
 
-          {/* Status */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">Status</label>
             <select className="input-field" value={form.status}
@@ -275,7 +297,6 @@ export default function TutoriasPage() {
             </select>
           </div>
 
-          {/* Alunas — checkboxes dinâmicos */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Alunas da equipe</label>
             {alunas.length === 0 ? (
@@ -298,12 +319,20 @@ export default function TutoriasPage() {
             )}
           </div>
 
-          {/* Thunkable URL */}
+
+
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Link Thunkable (opcional)</label>
-            <input type="url" placeholder="https://x.thunkable.com/..." className="input-field"
-              value={form.thunkableUrl}
-              onChange={(e) => setForm((p) => ({ ...p, thunkableUrl: e.target.value }))} />
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Link Telegram (opcional)</label>
+            <input type="url" placeholder="https://t.me/..." className="input-field"
+              value={form.telegramUrl}
+              onChange={(e) => setForm((p) => ({ ...p, telegramUrl: e.target.value }))} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Link WhatsApp (opcional)</label>
+            <input type="url" placeholder="https://chat.whatsapp.com/..." className="input-field"
+              value={form.whatsappUrl}
+              onChange={(e) => setForm((p) => ({ ...p, whatsappUrl: e.target.value }))} />
           </div>
 
           {formError && (

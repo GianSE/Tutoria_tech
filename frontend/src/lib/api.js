@@ -9,7 +9,7 @@ export function apiFetch(url, options = {}) {
 
   const headers = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(isFormData ? {} : { "Content-Type": "application/json" }),
+    ...(isFormData || !options.body ? {} : { "Content-Type": "application/json" }),
     ...options.headers,
   };
 

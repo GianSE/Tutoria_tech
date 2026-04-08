@@ -48,13 +48,14 @@ enum ProgressStage {
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String   @db.VarChar(120)
-  email     String   @unique @db.VarChar(255)
-  password  String   @db.VarChar(255)
-  role      Role     @default(ALUNA)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(120)
+  email     String    @unique @db.VarChar(255)
+  password  String    @db.VarChar(255)
+  role      Role      @default(ALUNA)
+  birthDate DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   mentoring       Team[]            @relation("TeamMentor")
   teams           Team[]            @relation("TeamStudents")
@@ -68,6 +69,8 @@ model Team {
   id           Int        @id @default(autoincrement())
   name         String     @db.VarChar(120)
   thunkableUrl String?    @db.VarChar(500)
+  telegramUrl  String?    @db.VarChar(500)
+  whatsappUrl  String?    @db.VarChar(500)
   status       TeamStatus @default(IDEACAO)
   mentorId     Int
   createdAt    DateTime   @default(now())
@@ -81,16 +84,30 @@ model Team {
 }
 
 model Material {
-  id          Int      @id @default(autoincrement())
-  title       String   @db.VarChar(200)
-  description String?  @db.Text
-  fileUrl     String?  @db.VarChar(500)
-  category    String   @default("Geral") @db.VarChar(100)
-  type        String   @default("Guia") @db.VarChar(50)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id          Int            @id @default(autoincrement())
+  title       String         @db.VarChar(200)
+  description String?        @db.Text
+  fileUrl     String?        @db.VarChar(500)
+  category    String         @default("Geral") @db.VarChar(100)
+  type        String         @default("Guia") @db.VarChar(50)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  files       MaterialFile[]
 
   @@map("materials")
+}
+
+model MaterialFile {
+  id         Int      @id @default(autoincrement())
+  materialId Int
+  fileName   String   @db.VarChar(255)
+  fileUrl    String   @db.VarChar(500)
+  createdAt  DateTime @default(now())
+
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@map("material_files")
 }
 
 model Schedule {

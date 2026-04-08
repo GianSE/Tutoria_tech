@@ -1,23 +1,28 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Bell, CheckCheck, Clock, ChevronRight } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { apiFetch } from "../lib/api";
 
 /**
  * Componente de sino de notificações.
  * Busca as últimas atividades em /api/dashboard/activities
- * e usa localStorage para rastrear quais foram lidas.
+ * e usa localStorage por userId para rastrear quais foram lidas.
  */
 export default function NotificationBell() {
+  const { user } = useAuth();
+  const storageKey = `notif_last_seen_${user?.id ?? "anon"}`;
+
   const [open, setOpen]             = useState(false);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading]       = useState(true);
   const [lastSeen, setLastSeen]     = useState(
-    () => localStorage.getItem("notif_last_seen") ?? "1970-01-01T00:00:00Z"
+    () => localStorage.getItem(storageKey) ?? "1970-01-01T00:00:00Z"
   );
   const panelRef = useRef(null);
 
   // Busca atividades ao montar e a cada 60s
   const fetchActivities = useCallback(() => {
-    fetch("/api/dashboard/activities")
+    apiFetch("/api/dashboard/activities")
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setActivities(data); })
       .catch(() => {})
@@ -46,7 +51,7 @@ export default function NotificationBell() {
 
   const markAllRead = () => {
     const now = new Date().toISOString();
-    localStorage.setItem("notif_last_seen", now);
+    localStorage.setItem(storageKey, now);
     setLastSeen(now);
   };
 

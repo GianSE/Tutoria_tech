@@ -9,7 +9,7 @@ const ROLE_STYLES = {
   ALUNA:   "bg-slate-600/40  text-slate-300  border border-slate-600/40",
 };
 
-const EMPTY_FORM = { name: "", email: "", password: "", role: "ALUNA" };
+const EMPTY_FORM = { name: "", email: "", password: "", role: "ALUNA", birthDate: "" };
 
 export default function UsuariosPage() {
   const [users, setUsers]           = useState([]);
@@ -43,7 +43,13 @@ export default function UsuariosPage() {
 
   const openEdit = (user) => {
     setEditingId(user.id);
-    setForm({ name: user.name, email: user.email, password: "", role: user.role });
+    setForm({
+      name: user.name,
+      email: user.email,
+      password: "",
+      role: user.role,
+      birthDate: user.birthDate ? user.birthDate.split("T")[0] : "",
+    });
     setFormError("");
     setModalOpen(true);
   };
@@ -124,16 +130,17 @@ export default function UsuariosPage() {
               <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Usuário</th>
               <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">E-mail</th>
               <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Papel</th>
+              <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Nascimento</th>
               <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-28">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {loading ? (
-              <tr><td colSpan={4} className="px-6 py-10 text-center text-slate-500">
+              <tr><td colSpan={5} className="px-6 py-10 text-center text-slate-500">
                 <Loader2 size={20} className="animate-spin inline mr-2" />Carregando...
               </td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={4} className="px-6 py-10 text-center text-slate-500 text-sm">
+              <tr><td colSpan={5} className="px-6 py-10 text-center text-slate-500 text-sm">
                 Nenhum usuário encontrado.
               </td></tr>
             ) : (
@@ -150,6 +157,9 @@ export default function UsuariosPage() {
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${ROLE_STYLES[u.role]}`}>
                       {ROLE_LABELS[u.role] ?? u.role}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 text-slate-400 text-sm">
+                    {u.birthDate ? new Date(u.birthDate).toLocaleDateString("pt-BR") : "—"}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1">
@@ -202,6 +212,12 @@ export default function UsuariosPage() {
               <option value="MENTORA">Mentora</option>
               <option value="ADMIN">Admin</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Data de Nascimento (opcional)</label>
+            <input type="date" className="input-field"
+              value={form.birthDate}
+              onChange={(e) => setForm((p) => ({ ...p, birthDate: e.target.value }))} />
           </div>
           {formError && (
             <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10

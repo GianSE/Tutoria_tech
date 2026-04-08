@@ -67,6 +67,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_USE_SSL=false
       - MINIO_BUCKET_NAME=materiais
+      - MINIO_PUBLIC_URL=http://localhost:9000
     command: sh -c "npx prisma generate && npx prisma db push && npx prisma db seed && npx prisma studio --hostname 0.0.0.0 & npm run dev"
     ports:
       - "3001:3001" # Porta para a API do backend

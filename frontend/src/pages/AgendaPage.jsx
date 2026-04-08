@@ -28,7 +28,7 @@ const STATUS_LABELS = { REALIZADA: "Realizado", PENDENTE: "Agendado", CANCELADA:
 
 const EMPTY_FORM = {
   title: "", date: "", local: "",
-  type: "SESSAO_DE_TUTORIA", status: "PENDENTE", presencas: 0,
+  type: "SESSAO_DE_TUTORIA", status: "PENDENTE",
 };
 
 function fmtDate(iso) {
@@ -69,12 +69,13 @@ export default function AgendaPage() {
   const [pLoading, setPLoading]             = useState(false);
   const [pSaving, setPSaving]               = useState(false);
   const [allUsers, setAllUsers]             = useState([]);
+  const [pManual, setPManual]               = useState(""); // presencas manuais quando sem usuários selecionados
 
   const tipos = ["Todos", ...Object.keys(TIPO_LABELS)];
 
   const fetchSchedules = useCallback(async () => {
     try {
-      const res = await fetch("/api/schedules");
+      const res = await apiFetch("/api/schedules");
       setSchedules(await res.json());
     } finally {
       setLoading(false);
@@ -101,7 +102,6 @@ export default function AgendaPage() {
       local:     ev.local ?? "",
       type:      ev.type,
       status:    ev.status,
-      presencas: ev.presencas ?? 0,
     });
     setFormError("");
     setModalOpen(true);
@@ -114,10 +114,9 @@ export default function AgendaPage() {
     try {
       const payload = {
         ...form,
-        date:      new Date(form.date).toISOString(),
-        presencas: Number(form.presencas),
+        date: new Date(form.date).toISOString(),
       };
-      const res = await fetch(
+      const res = await apiFetch(
         editingId ? `/api/schedules/${editingId}` : "/api/schedules",
         {
           method: editingId ? "PUT" : "POST",
@@ -140,7 +139,7 @@ export default function AgendaPage() {
     if (!confirmDel) return;
     setDeleting(true);
     try {
-      await fetch(`/api/schedules/${confirmDel.id}`, { method: "DELETE" });
+      await apiFetch(`/api/schedules/${confirmDel.id}`, { method: "DELETE" });
       await fetchSchedules();
       setConfirmDel(null);
     } finally {
@@ -152,17 +151,18 @@ export default function AgendaPage() {
 
   // Carrega todos os usuários para o checklist de presença
   useEffect(() => {
-    fetch("/api/users")
+    apiFetch("/api/users")
       .then((r) => r.json())
       .then(setAllUsers)
       .catch(() => {});
   }, []);
 
   const openPresenca = async (ev) => {
-    setPresencaModal({ scheduleId: ev.id, title: ev.title });
+    setPresencaModal({ scheduleId: ev.id, title: ev.title, presencas: ev.presencas ?? 0 });
+    setPManual(String(ev.presencas ?? 0));
     setPLoading(true);
     try {
-      const res = await fetch(`/api/schedules/${ev.id}/attendance`);
+      const res = await apiFetch(`/api/schedules/${ev.id}/attendance`);
       const data = await res.json();
       const presentIds = new Set((data.attendances ?? []).map((a) => a.user.id));
       setPChecked(presentIds);
@@ -173,21 +173,49 @@ export default function AgendaPage() {
     }
   };
 
-  const togglePresenca = async (userId) => {
+  // Toggle local (sem salvar ainda)
+  const togglePresenca = (userId) => {
+    setPChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  // Salva a lista de presença via PUT (bulk)
+  const savePresenca = async () => {
     if (!presencaModal) return;
     setPSaving(true);
     try {
-      await apiFetch(
-        `/api/schedules/${presencaModal.scheduleId}/attendance/${userId}/toggle`,
-        { method: "POST" }
-      );
-      setPChecked((prev) => {
-        const next = new Set(prev);
-        if (next.has(userId)) next.delete(userId);
-        else next.add(userId);
-        return next;
-      });
-      await fetchSchedules(); // atualiza contagem na lista
+      const userIds = pChecked.size > 0
+        ? Array.from(pChecked)
+        : []; // lista vazia → vai setar presencas manual
+
+      if (pChecked.size > 0) {
+        // Salva via attendance (contagem automática)
+        await apiFetch(
+          `/api/schedules/${presencaModal.scheduleId}/attendance`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userIds }),
+          }
+        );
+      } else {
+        // Sem usuários selecionados → salva contagem manual
+        await apiFetch(
+          `/api/schedules/${presencaModal.scheduleId}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ presencas: Number(pManual) || 0 }),
+          }
+        );
+      }
+
+      await fetchSchedules();
+      setPresencaModal(null);
     } finally {
       setPSaving(false);
     }
@@ -200,9 +228,11 @@ export default function AgendaPage() {
           <h2 className="text-2xl font-bold text-white">Agenda de Encontros</h2>
           <p className="text-slate-400 text-sm mt-0.5">Sessões, Meninas no Lab e Rodas de Conversa.</p>
         </div>
-        <button onClick={openNew} className="btn-primary flex items-center gap-2 self-start sm:self-auto">
-          <Plus size={16} /> Novo Evento
-        </button>
+        {canManage && (
+          <button onClick={openNew} className="btn-primary flex items-center gap-2 self-start sm:self-auto">
+            <Plus size={16} /> Novo Evento
+          </button>
+        )}
       </div>
 
       {/* Filtros por tipo */}
@@ -273,28 +303,31 @@ export default function AgendaPage() {
                   {ev.local && (
                     <span className="flex items-center gap-1"><MapPin size={11} />{ev.local}</span>
                   )}
-                  {ev.status === "REALIZADA" && (
-                    <span className="flex items-center gap-1 text-emerald-400">
-                      {ev.presencas} presenças
-                    </span>
-                  )}
                 </div>
               </div>
 
-              {/* Status */}
-              <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5
-                                rounded-full flex-shrink-0 ${STATUS_STYLE[ev.status] ?? ""}`}>
-                {ev.status === "REALIZADA" && <CheckCircle2 size={12} />}
-                {ev.status === "PENDENTE"  && <Clock size={12} />}
-                {STATUS_LABELS[ev.status] ?? ev.status}
+              {/* Status + badge vencido */}
+              <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5
+                                  rounded-full ${STATUS_STYLE[ev.status] ?? ""}`}>
+                  {ev.status === "REALIZADA" && <CheckCircle2 size={12} />}
+                  {ev.status === "PENDENTE"  && <Clock size={12} />}
+                  {STATUS_LABELS[ev.status] ?? ev.status}
+                </div>
+                {ev.isOverdue && (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full
+                                   bg-red-500/15 text-red-400 border border-red-500/30">
+                    Data vencida
+                  </span>
+                )}
               </div>
 
               {/* Ações */}
               <div className="flex items-center gap-1 flex-shrink-0">
-                {/* Botão de presença — só para sessões Realizadas e usuários ADMIN/MENTORA */}
-                {ev.status === "REALIZADA" && canManage && (
+                {/* Botão de presença — só para ADMIN/MENTORA e status REALIZADA */}
+                {canManage && ev.status === "REALIZADA" && (
                   <button onClick={() => openPresenca(ev)}
-                    title="Registrar presença"
+                    title="Gerenciar presença"
                     className="flex items-center gap-1 px-2.5 h-8 rounded-lg text-xs font-semibold
                                text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all">
                     <Users size={13} /> {ev.presencas}
@@ -351,24 +384,14 @@ export default function AgendaPage() {
             <input type="text" placeholder="Ex: Lab de Informática — Bloco B" className="input-field"
               value={form.local} onChange={(e) => setForm((p) => ({ ...p, local: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Status</label>
-              <select className="input-field" value={form.status}
-                onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
-                <option value="PENDENTE">Agendado</option>
-                <option value="REALIZADA">Realizado</option>
-                <option value="CANCELADA">Cancelado</option>
-              </select>
-            </div>
-            {form.status === "REALIZADA" && (
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">Presenças</label>
-                <input type="number" min={0} className="input-field"
-                  value={form.presencas}
-                  onChange={(e) => setForm((p) => ({ ...p, presencas: e.target.value }))} />
-              </div>
-            )}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Status</label>
+            <select className="input-field" value={form.status}
+              onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
+              <option value="PENDENTE">Agendado</option>
+              <option value="REALIZADA">Realizado</option>
+              <option value="CANCELADA">Cancelado</option>
+            </select>
           </div>
           {formError && (
             <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10
@@ -408,20 +431,38 @@ export default function AgendaPage() {
         </div>
       </Modal>
 
-      {/* ─── Modal: Registro de Presença ────────────────────────────────────────── */}
+      {/* Modal: Registro de Presenca */}
       <Modal isOpen={!!presencaModal} onClose={() => setPresencaModal(null)}
-             title={`Presença — ${presencaModal?.title ?? ""}`}>
+             title={`Presenca - ${presencaModal?.title ?? ""}`}>
         <p className="text-slate-500 text-xs mb-4">
-          Marque quem esteve presente nesta sessão. Alterações são salvas automaticamente.
+          Selecione quem esteve presente. Clique em <strong className="text-slate-300">Salvar</strong> para confirmar.
         </p>
         {pLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 size={20} className="animate-spin text-violet-400" />
           </div>
         ) : (
-          <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+          <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+            {allUsers.length > 0 && (
+              <div className="flex items-center justify-between px-3 py-2 mb-1 border-b border-slate-800">
+                <span className="text-xs text-slate-500 font-medium">{allUsers.length} usuários</span>
+                <div className="flex gap-2">
+                  <button type="button"
+                    onClick={() => setPChecked(new Set(allUsers.map((u) => u.id)))}
+                    className="text-xs text-violet-400 hover:text-violet-300 font-medium transition-colors">
+                    Selecionar todos
+                  </button>
+                  <span className="text-slate-700">·</span>
+                  <button type="button"
+                    onClick={() => setPChecked(new Set())}
+                    className="text-xs text-slate-500 hover:text-slate-300 font-medium transition-colors">
+                    Limpar
+                  </button>
+                </div>
+              </div>
+            )}
             {allUsers.length === 0 && (
-              <p className="text-slate-500 text-sm text-center py-6">Nenhum usuário cadastrado.</p>
+              <p className="text-slate-500 text-sm text-center py-6">Nenhum usuario cadastrado.</p>
             )}
             {allUsers.map((u) => {
               const isChecked = pChecked.has(u.id);
@@ -432,7 +473,6 @@ export default function AgendaPage() {
                     isChecked
                       ? "bg-emerald-500/10 border border-emerald-500/20"
                       : "hover:bg-slate-800 border border-transparent",
-                    pSaving ? "opacity-60 pointer-events-none" : "",
                   ].join(" ")}>
                   <input type="checkbox" checked={isChecked} onChange={() => togglePresenca(u.id)}
                     className="w-4 h-4 accent-emerald-500" />
@@ -446,14 +486,40 @@ export default function AgendaPage() {
             })}
           </div>
         )}
-        <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-800">
-          <span className="text-sm text-slate-400">
-            <span className="text-white font-bold">{pChecked.size}</span> presente{pChecked.size !== 1 ? "s" : ""}
-          </span>
-          <button onClick={() => setPresencaModal(null)}
-            className="px-4 py-2 text-sm rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
-            Fechar
-          </button>
+
+        <div className="mt-5 pt-4 border-t border-slate-800 space-y-3">
+          {pChecked.size === 0 && !pLoading && (
+            <div className="flex items-center gap-3">
+              <label className="text-slate-400 text-sm whitespace-nowrap">Presencas (manual):</label>
+              <input
+                type="number" min={0}
+                className="input-field py-1 text-sm w-28"
+                value={pManual}
+                onChange={(e) => setPManual(e.target.value)}
+                placeholder="0"
+              />
+              <span className="text-slate-600 text-xs italic">nenhum user selecionado</span>
+            </div>
+          )}
+          {pChecked.size > 0 && (
+            <p className="text-sm text-slate-400">
+              <span className="text-white font-bold">{pChecked.size}</span>{" "}
+              presente{pChecked.size !== 1 ? "s" : ""} selecionado{pChecked.size !== 1 ? "s" : ""}
+            </p>
+          )}
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setPresencaModal(null)}
+              className="px-4 py-2 text-sm rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+              Cancelar
+            </button>
+            <button onClick={savePresenca} disabled={pSaving}
+              className="btn-primary flex items-center gap-2 disabled:opacity-60">
+              {pSaving
+                ? <><Loader2 size={14} className="animate-spin" />Salvando...</>
+                : <><CheckCircle2 size={14} />Salvar Presenca</>
+              }
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

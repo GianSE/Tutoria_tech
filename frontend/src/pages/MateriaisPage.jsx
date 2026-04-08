@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback } from "react";
-import { Download, BookOpen, Zap, Code2, Lightbulb, Plus, ExternalLink, Pencil, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Download, BookOpen, Zap, Code2, Lightbulb, Plus, ExternalLink, Pencil, Trash2, Loader2, AlertCircle, Upload, X } from "lucide-react";
 import Modal from "../components/Modal";
+import { useAuth } from "../context/AuthContext";
+import { apiFetch } from "../lib/api";
 
 const CATEGORIAS = ["Todos", "Programação", "Design", "Empreendedorismo", "Desafios"];
 
@@ -25,9 +27,12 @@ const GRADIENT_MAP = {
   Empreendedorismo:  "from-sky-600 to-blue-700",
 };
 
-const EMPTY_FORM = { title: "", description: "", fileUrl: "", category: "Programação", type: "Tutorial" };
+const EMPTY_FORM = { title: "", description: "", category: "Programação", type: "Tutorial" };
 
 export default function MateriaisPage() {
+  const { user } = useAuth();
+  const canManage = ["ADMIN", "MENTORA"].includes(user?.role);
+
   const [materials, setMaterials]   = useState([]);
   const [loading, setLoading]       = useState(true);
   const [categoria, setCategoria]   = useState("Todos");
@@ -35,13 +40,15 @@ export default function MateriaisPage() {
   const [editingId, setEditingId]   = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
   const [form, setForm]             = useState(EMPTY_FORM);
+  const [selectedFiles, setSelectedFiles] = useState([]); // FileList equivalent
   const [saving, setSaving]         = useState(false);
   const [deleting, setDeleting]     = useState(false);
   const [formError, setFormError]   = useState("");
+  const fileInputRef = useRef(null);
 
   const fetchMaterials = useCallback(async () => {
     try {
-      const res = await fetch("/api/materials");
+      const res = await apiFetch("/api/materials");
       setMaterials(await res.json());
     } finally {
       setLoading(false);
@@ -53,6 +60,7 @@ export default function MateriaisPage() {
   const openNew = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setSelectedFiles([]);
     setFormError("");
     setModalOpen(true);
   };
@@ -62,12 +70,25 @@ export default function MateriaisPage() {
     setForm({
       title: m.title,
       description: m.description ?? "",
-      fileUrl: m.fileUrl ?? "",
       category: m.category,
       type: m.type,
     });
+    setSelectedFiles([]);
     setFormError("");
     setModalOpen(true);
+  };
+
+  const handleFilesChange = (e) => {
+    const files = Array.from(e.target.files ?? []);
+    setSelectedFiles((prev) => {
+      const existingNames = new Set(prev.map((f) => f.name));
+      return [...prev, ...files.filter((f) => !existingNames.has(f.name))];
+    });
+    e.target.value = "";
+  };
+
+  const removeFile = (name) => {
+    setSelectedFiles((prev) => prev.filter((f) => f.name !== name));
   };
 
   const handleSave = async (e) => {
@@ -75,17 +96,47 @@ export default function MateriaisPage() {
     setFormError("");
     setSaving(true);
     try {
-      const res = await fetch(
-        editingId ? `/api/materials/${editingId}` : "/api/materials",
-        {
-          method: editingId ? "PUT" : "POST",
+      if (editingId) {
+        // Edição: atualiza apenas metadados (PUT com JSON)
+        const res = await apiFetch(`/api/materials/${editingId}`, {
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message ?? "Erro ao salvar material.");
+
+        if (selectedFiles.length > 0) {
+          const fd = new FormData();
+          selectedFiles.forEach((f) => fd.append("file", f));
+          const fileRes = await apiFetch(`/api/materials/${editingId}/files`, {
+            method: "POST",
+            body: fd,
+          });
+          if (!fileRes.ok) {
+            const fileData = await fileRes.json();
+            throw new Error(fileData.message ?? "Erro ao anexar novos arquivos.");
+          }
         }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? "Erro ao salvar material.");
+      } else {
+        // Criação: multipart com arquivos
+        const fd = new FormData();
+        fd.append("title", form.title);
+        fd.append("description", form.description);
+        fd.append("category", form.category);
+        fd.append("type", form.type);
+        selectedFiles.forEach((f) => fd.append("file", f));
+
+        const res = await apiFetch("/api/materials", {
+          method: "POST",
+          body: fd,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message ?? "Erro ao salvar material.");
+      }
+
       await fetchMaterials();
+      setSelectedFiles([]); // Limpa arquivos selecionados
       setModalOpen(false);
     } catch (err) {
       setFormError(err.message);
@@ -98,12 +149,23 @@ export default function MateriaisPage() {
     if (!confirmDel) return;
     setDeleting(true);
     try {
-      await fetch(`/api/materials/${confirmDel.id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/materials/${confirmDel.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message ?? "Erro ao excluir material.");
+      }
       await fetchMaterials();
       setConfirmDel(null);
+    } catch (err) {
+      alert(err.message);
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleDeleteFile = async (materialId, fileId) => {
+    await apiFetch(`/api/materials/${materialId}/files/${fileId}`, { method: "DELETE" });
+    await fetchMaterials();
   };
 
   const filtered = categoria === "Todos"
@@ -117,10 +179,11 @@ export default function MateriaisPage() {
           <h2 className="text-2xl font-bold text-white">Materiais de Apoio</h2>
           <p className="text-slate-400 text-sm mt-0.5">Conteúdos, guias e desafios para o programa.</p>
         </div>
-        {/* Botão corrigido — onClick agora abre o modal */}
-        <button onClick={openNew} className="btn-primary flex items-center gap-2 self-start sm:self-auto">
-          <Plus size={16} /> Novo Material
-        </button>
+        {canManage && (
+          <button onClick={openNew} className="btn-primary flex items-center gap-2 self-start sm:self-auto">
+            <Plus size={16} /> Novo Material
+          </button>
+        )}
       </div>
 
       {/* Filtros */}
@@ -154,7 +217,7 @@ export default function MateriaisPage() {
           <p className="text-slate-500 text-sm">
             {materials.length === 0 ? "Nenhum material publicado ainda." : "Nenhum material nesta categoria."}
           </p>
-          {materials.length === 0 && (
+          {materials.length === 0 && canManage && (
             <button onClick={openNew} className="btn-primary mt-4 inline-flex items-center gap-2">
               <Plus size={15} /> Adicionar primeiro material
             </button>
@@ -165,6 +228,7 @@ export default function MateriaisPage() {
           {filtered.map((m) => {
             const Icon     = ICON_MAP[m.category]   ?? BookOpen;
             const gradient = GRADIENT_MAP[m.category] ?? "from-slate-600 to-slate-700";
+            const allFiles = m.files ?? [];
             return (
               <div key={m.id}
                 className="card hover:border-slate-600 transition-all duration-200 flex flex-col gap-4">
@@ -173,18 +237,20 @@ export default function MateriaisPage() {
                                   flex items-center justify-center shadow-lg flex-shrink-0`}>
                     <Icon size={20} className="text-white" />
                   </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => openEdit(m)}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center
-                                 text-slate-500 hover:bg-slate-700 hover:text-slate-200 transition-all">
-                      <Pencil size={13} />
-                    </button>
-                    <button onClick={() => setConfirmDel({ id: m.id, name: m.title })}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center
-                                 text-slate-500 hover:bg-red-500/15 hover:text-red-400 transition-all">
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                  {canManage && (
+                    <div className="flex gap-1">
+                      <button onClick={() => openEdit(m)}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center
+                                   text-slate-500 hover:bg-slate-700 hover:text-slate-200 transition-all">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => setConfirmDel({ id: m.id, name: m.title })}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center
+                                   text-slate-500 hover:bg-red-500/15 hover:text-red-400 transition-all">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1">
@@ -200,9 +266,14 @@ export default function MateriaisPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
-                  {m.fileUrl ? (
-                    <>
+                {/* Arquivos */}
+                <div className="flex flex-col gap-1.5 pt-3 border-t border-slate-800">
+                  {allFiles.length === 0 && !m.fileUrl && (
+                    <span className="text-slate-600 text-xs italic">Sem arquivos</span>
+                  )}
+                  {/* Legacy fileUrl */}
+                  {m.fileUrl && allFiles.length === 0 && (
+                    <div className="flex items-center gap-2">
                       <a href={m.fileUrl} target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-1.5 text-violet-400 hover:text-violet-300 text-sm font-medium transition-colors">
                         <ExternalLink size={13} /> Acessar
@@ -211,10 +282,27 @@ export default function MateriaisPage() {
                         className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors ml-auto">
                         <Download size={13} /> Baixar
                       </a>
-                    </>
-                  ) : (
-                    <span className="text-slate-600 text-xs italic">Sem link</span>
+                    </div>
                   )}
+                  {/* MaterialFile list */}
+                  {allFiles.map((f) => (
+                    <div key={f.id} className="flex items-center gap-2 group">
+                      <a href={f.fileUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex-1 min-w-0 text-xs text-violet-400 hover:text-violet-300 truncate flex items-center gap-1.5 transition-colors">
+                        <ExternalLink size={11} />
+                        <span className="truncate">{f.fileName}</span>
+                      </a>
+                      <a href={f.fileUrl} download className="text-slate-600 hover:text-slate-300 transition-colors flex-shrink-0">
+                        <Download size={12} />
+                      </a>
+                      {canManage && (
+                        <button onClick={() => handleDeleteFile(m.id, f.id)}
+                          className="text-slate-700 hover:text-red-400 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100">
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             );
@@ -255,11 +343,33 @@ export default function MateriaisPage() {
               </select>
             </div>
           </div>
+
+          {/* Seleção de múltiplos arquivos */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">URL do arquivo (opcional)</label>
-            <input type="url" placeholder="https://..." className="input-field"
-              value={form.fileUrl} onChange={(e) => setForm((p) => ({ ...p, fileUrl: e.target.value }))} />
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">
+              Arquivos {editingId ? "(novos arquivos serão adicionados)" : ""}
+            </label>
+            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFilesChange} />
+            <button type="button" onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2 border border-dashed border-slate-600
+                         rounded-xl text-sm text-slate-400 hover:border-violet-500 hover:text-violet-400 transition-all w-full justify-center">
+              <Upload size={14} /> Escolher arquivos
+            </button>
+            {selectedFiles.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {selectedFiles.map((f) => (
+                  <li key={f.name} className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800 rounded-lg px-3 py-1.5">
+                    <span className="flex-1 truncate">{f.name}</span>
+                    <span className="text-slate-600">{(f.size / 1024).toFixed(0)}KB</span>
+                    <button type="button" onClick={() => removeFile(f.name)} className="text-slate-600 hover:text-red-400 transition-colors">
+                      <X size={12} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
+
           {formError && (
             <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10
                             border border-red-500/30 rounded-xl px-4 py-3">

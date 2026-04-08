@@ -135,13 +135,13 @@ export default function RoseChatPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 border-t border-slate-800 bg-slate-900">
-          <div className="relative rounded-xl bg-slate-950 border border-slate-700 focus-within:border-violet-500/60 transition-colors">
+          <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-950 border border-slate-700 focus-within:border-violet-500/60 transition-colors">
             <textarea
               rows={1}
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
-                e.target.style.height = "44px";
+                e.target.style.height = "auto";
                 e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
               }}
               onKeyDown={(e) => {
@@ -152,15 +152,15 @@ export default function RoseChatPage() {
               }}
               placeholder="Digite sua mensagem para a Rose..."
               disabled={isLoading}
-              className="w-full bg-transparent resize-none outline-none text-sm text-white placeholder-slate-500 py-3 pl-4 pr-14"
-              style={{ height: "44px", maxHeight: "140px", overflowY: "auto" }}
+              className="flex-1 bg-transparent resize-none outline-none text-sm text-white placeholder-slate-500 py-2.5 px-3"
+              style={{ minHeight: "40px", height: "40px", maxHeight: "140px", overflowY: "auto" }}
             />
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="absolute right-1.5 bottom-1.5 w-10 h-8 rounded-lg bg-violet-600 hover:bg-violet-500 text-white flex items-center justify-center disabled:opacity-50"
+              className="flex-shrink-0 w-10 h-10 rounded-lg bg-violet-600 hover:bg-violet-500 text-white flex items-center justify-center disabled:opacity-50 transition-all"
             >
-              <Send size={15} />
+              <Send size={18} />
             </button>
           </div>
         </form>
