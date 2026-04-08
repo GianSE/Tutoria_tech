@@ -10,7 +10,6 @@ import MateriaisPage from "./pages/MateriaisPage";
 import AgendaPage from "./pages/AgendaPage";
 import PerfilPage from "./pages/PerfilPage";
 import ConfiguracoesIAPage from "./pages/ConfiguracoesIAPage";
-import AnalyticsPage from "./pages/AnalyticsPage";
 import RoseChatPage from "./pages/RoseChatPage";
 
 export default function App() {
@@ -36,7 +35,6 @@ export default function App() {
 
             {/* ── Apenas ADMIN ───────────────────────────────────────── */}
             <Route element={<PrivateRoute allowedRoles={["ADMIN"]} />}>
-              <Route path="/app/analytics-ia" element={<AnalyticsPage />} />
               <Route path="/app/usuarios" element={<UsuariosPage />} />
               <Route path="/app/configuracoes-ia" element={<ConfiguracoesIAPage />} />
             </Route>

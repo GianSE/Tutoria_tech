@@ -5,16 +5,6 @@ export async function chatRoutes(fastify, options) {
     try {
       const { history = [], message } = req.body;
 
-      // Analytics nao bloqueante: registra pergunta sem atrasar resposta
-      void prisma.chatAnalytics.create({
-        data: {
-          question: String(message ?? ""),
-          role: String(req.user?.role ?? "ALUNA"),
-        },
-      }).catch((error) => {
-        req.log.error(error);
-      });
-
       // 1. Carregar chave da IA e o prompt do banco
       const settings = await prisma.systemSetting.findMany({
         where: { key: { in: ["GEMINI_API_KEY", "ROSE_SYSTEM_PROMPT"] } },

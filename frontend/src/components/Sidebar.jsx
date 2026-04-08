@@ -41,11 +41,7 @@ const ALL_NAV_ITEMS = [
     icon: Users,
     roles: ["ADMIN"],                       // ← apenas ADMIN
   },
-  {
-    to: "/app/analytics-ia", label: "Analytics IA",
-    icon: BarChart3,
-    roles: ["ADMIN"],
-  },
+
   {
     to: "/app/configuracoes-ia", label: "Configuracao da IA",
     icon: Bot,

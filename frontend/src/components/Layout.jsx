@@ -13,7 +13,6 @@ const PAGE_TITLES = {
   "/app/agenda":    "Agenda de Encontros",
   "/app/perfil":    "Meu Perfil",
   "/app/configuracoes-ia": "Configuracao da IA",
-  "/app/analytics-ia": "Analytics IA",
 };
 
 export default function Layout() {

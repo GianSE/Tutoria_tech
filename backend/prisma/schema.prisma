@@ -179,11 +179,4 @@ model KnowledgeChunk {
   @@map("knowledge_chunks")
 }
 
-model ChatAnalytics {
-  id        Int      @id @default(autoincrement())
-  question  String   @db.Text
-  role      String   @db.VarChar(50)
-  createdAt DateTime @default(now())
 
-  @@map("chat_analytics")
-}

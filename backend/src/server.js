@@ -14,7 +14,6 @@ import { attendanceRoutes } from "./routes/attendance.js";
 import { progressRoutes }   from "./routes/progress.js";
 import { chatRoutes }       from "./routes/chat.js";
 import { settingsRoutes }   from "./routes/settings.js";
-import { analyticsRoutes }  from "./routes/analytics.js";
 
 const app = Fastify({ logger: true });
 
@@ -46,7 +45,6 @@ await app.register(attendanceRoutes, { prefix: "/api/schedules" });  // comparti
 await app.register(dashboardRoutes,  { prefix: "/api/dashboard" });
 await app.register(settingsRoutes,   { prefix: "/api/settings" });
 await app.register(chatRoutes,       { prefix: "/api/chat" });
-await app.register(analyticsRoutes,  { prefix: "/api/analytics" });
 
 // Health-check
 app.get("/", async () => ({ status: "ok", service: "tutoria-backend" }));

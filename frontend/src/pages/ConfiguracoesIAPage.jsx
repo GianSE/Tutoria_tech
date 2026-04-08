@@ -158,6 +158,7 @@ export default function ConfiguracoesIAPage() {
 
     if (!file) return;
 
+    const lowerName = file.name.toLowerCase();
     const allowedExtensions = [".md", ".pdf", ".docx", ".txt", ".xlsx", ".csv", ".pptx"];
     if (!allowedExtensions.some(ext => lowerName.endsWith(ext))) {
       setError("Formato não suportado. Tente um arquivo de texto, documento ou planilha.");
