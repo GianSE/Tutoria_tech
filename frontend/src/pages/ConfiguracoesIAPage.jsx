@@ -158,9 +158,15 @@ export default function ConfiguracoesIAPage() {
 
     if (!file) return;
 
-    const lowerName = file.name.toLowerCase();
-    if (!lowerName.endsWith(".md")) {
-      setError("Formato invalido. Envie apenas arquivos .md.");
+    const allowedExtensions = [".md", ".pdf", ".docx", ".txt", ".xlsx", ".csv", ".pptx"];
+    if (!allowedExtensions.some(ext => lowerName.endsWith(ext))) {
+      setError("Formato não suportado. Tente um arquivo de texto, documento ou planilha.");
+      setSuccess("");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("O arquivo deve ter no máximo 10MB.");
       setSuccess("");
       return;
     }
@@ -324,14 +330,14 @@ export default function ConfiguracoesIAPage() {
         <div>
           <h3 className="text-white font-semibold text-lg">Base de Conhecimento</h3>
           <p className="text-slate-400 text-sm mt-1">
-            Apenas arquivos Markdown (.md) sao aceitos para garantir a eficiencia da IA.
+            Envie arquivos do tipo documento, PDF, texto ou planilha para treinar a Inteligência Artificial.
           </p>
         </div>
 
         <input
           ref={fileInputRef}
           type="file"
-          accept=".md"
+          accept=".md,.pdf,.docx,.txt,.xlsx,.csv,.pptx"
           className="hidden"
           onChange={handleFileChange}
         />

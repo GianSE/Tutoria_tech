@@ -2,6 +2,24 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import path from "path";
 import prisma from "../lib/prisma.js";
 import { requireRole } from "../lib/requireRole.js";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+
+const M_ENDPOINT = process.env.MINIO_ENDPOINT || "minio";
+const M_PORT = process.env.MINIO_PORT || "9000";
+const M_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || "minioadmin";
+const M_SECRET_KEY = process.env.MINIO_SECRET_KEY || "minioadmin";
+const M_SECURE = process.env.MINIO_USE_SSL === "true";
+const BUCKET_NAME = process.env.MINIO_BUCKET_NAME || "materiais";
+
+const s3Client = new S3Client({
+  endpoint: `${M_SECURE ? "https" : "http"}://${M_ENDPOINT}:${M_PORT}`,
+  region: "us-east-1",
+  credentials: {
+    accessKeyId: M_ACCESS_KEY,
+    secretAccessKey: M_SECRET_KEY,
+  },
+  forcePathStyle: true,
+});
 
 function maskApiKey(apiKey) {
   if (!apiKey) return "";
@@ -10,7 +28,8 @@ function maskApiKey(apiKey) {
 
 function isAllowedKnowledgeExtension(filename = "") {
   const ext = path.extname(filename).toLowerCase();
-  return ext === ".md";
+  const allowedExts = [".md", ".pdf", ".docx", ".txt", ".xlsx", ".csv", ".pptx"];
+  return allowedExts.includes(ext);
 }
 
 function preprocessKnowledgeContent(text = "") {
@@ -86,6 +105,7 @@ export async function settingsRoutes(app) {
   });
 
   app.post("/ai/test", adminOnly, async (req, reply) => {
+    // ... codigo de test mantido inalterado
     const { apiKey = "" } = req.body ?? {};
 
     const submittedKey = typeof apiKey === "string" ? apiKey.trim() : "";
@@ -143,67 +163,48 @@ export async function settingsRoutes(app) {
         return reply.status(400).send({ message: "Nenhum arquivo foi enviado." });
       }
 
-      if (!isAllowedKnowledgeExtension(file.filename)) {
-        return reply.status(400).send({
-          message: "Formato invalido. Envie apenas arquivos .md.",
-        });
-      }
-
       const buffer = await file.toBuffer();
-      const content = preprocessKnowledgeContent(buffer.toString("utf-8"));
+      
+      // Cria um filename único para não sobrescrever arquivos no MinIO
+      const uniqueFileName = `${Date.now()}-${file.filename}`;
 
-      if (!content) {
-        return reply.status(400).send({ message: "O arquivo enviado esta vazio." });
-      }
+      // Salva no MinIO primeiramente
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: uniqueFileName,
+          Body: buffer,
+          ContentType: file.mimetype,
+        })
+      );
 
-      const chunks = splitIntoChunks(content);
-      if (chunks.length === 0) {
-        return reply.status(400).send({
-          message: "Nao foi possivel extrair paragrafos validos do markdown.",
-        });
-      }
+      // Salva o registro no banco antes do processamento e vetorização em background
+      const created = await prisma.knowledgeDocument.create({
+        data: { filename: uniqueFileName },
+        select: { id: true, filename: true, createdAt: true },
+      });
 
       const keySetting = await prisma.systemSetting.findUnique({
         where: { key: "GEMINI_API_KEY" },
       });
       const apiKey = keySetting?.value?.trim() || "";
 
-      if (!apiKey) {
-        return reply.status(503).send({
-          message: "A IA nao esta configurada. Defina a Gemini API Key no painel.",
-        });
-      }
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
-
-      const created = await prisma.knowledgeDocument.create({
-        data: {
-          filename: file.filename,
-        },
-        select: {
-          id: true,
-          filename: true,
-          createdAt: true,
-        },
-      });
-
-      for (const chunkText of chunks) {
-        const embedding = await embeddingModel.embedContent(chunkText);
-        const values = embedding?.embedding?.values ?? [];
-
-        if (!Array.isArray(values) || values.length === 0) {
-          continue;
-        }
-
-        await prisma.$executeRaw`
-          INSERT INTO knowledge_chunks (id, "documentId", content, embedding)
-          VALUES (gen_random_uuid(), ${created.id}, ${chunkText}, ${embedding.embedding.values}::vector)
-        `;
+      if (apiKey) {
+        // Envia para processamento em background pelo microsserviço Python
+        const pythonApiUrl = process.env.PYTHON_API_URL || "http://python-ia:8000";
+        fetch(`${pythonApiUrl}/process_knowledge`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            document_id: created.id,
+            file_name: uniqueFileName,
+            gemini_api_key: apiKey
+          }),
+        }).catch(err => req.log.error(err, "Falha ao avisar python-ia sobre novo knowledge document"));
       }
 
       return reply.status(201).send({
-        message: "Arquivo enviado com sucesso.",
+        message: "Arquivo recebido. A IA está processando o documento em segundo plano.",
         data: created,
       });
     } catch (error) {
@@ -220,10 +221,29 @@ export async function settingsRoutes(app) {
     }
 
     try {
+      const doc = await prisma.knowledgeDocument.findUnique({ where: { id } });
+      if (!doc) {
+        return reply.status(404).send({ message: "Documento nao encontrado." });
+      }
+
+      // Remover do MinIO
+      try {
+        await s3Client.send(
+          new DeleteObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: doc.filename,
+          })
+        );
+      } catch (minioErr) {
+        req.log.warn(minioErr, `Erro ao remover ${doc.filename} do MinIO. Continuando com remocao DB...`);
+      }
+
+      // Remover do banco de dados e os knowledge_chunks associados via CASCADE
       await prisma.knowledgeDocument.delete({ where: { id } });
-      return reply.send({ message: "Documento removido com sucesso." });
-    } catch {
-      return reply.status(404).send({ message: "Documento nao encontrado." });
+      return reply.send({ message: "Documento e vetores removidos com sucesso." });
+    } catch (dbErr) {
+      req.log.error(dbErr);
+      return reply.status(500).send({ message: "Erro ao excluir o documento." });
     }
   });
 }

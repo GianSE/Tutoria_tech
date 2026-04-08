@@ -5,3 +5,5 @@ boto3
 psycopg2-binary
 pypdf
 python-multipart
+python-docx
+openpyxl
