@@ -54,6 +54,7 @@ export default function AgendaPage() {
   const [schedules, setSchedules]           = useState([]);
   const [loading, setLoading]               = useState(true);
   const [filtro, setFiltro]                 = useState("Todos");
+  const [statusFiltro, setStatusFiltro]     = useState("Todos");
   const [modalOpen, setModalOpen]           = useState(false);
   const [editingId, setEditingId]           = useState(null);
   const [confirmDel, setConfirmDel]         = useState(null);
@@ -147,7 +148,22 @@ export default function AgendaPage() {
     }
   };
 
-  const filtered = filtro === "Todos" ? schedules : schedules.filter((s) => s.type === filtro);
+  const filtered = schedules
+    .filter((s) => (filtro === "Todos" || s.type === filtro))
+    .filter((s) => (statusFiltro === "Todos" || s.status === statusFiltro))
+    .sort((a, b) => {
+      // Prioridade 1: PENDENTE (Agendado) no topo
+      if (a.status === "PENDENTE" && b.status !== "PENDENTE") return -1;
+      if (a.status !== "PENDENTE" && b.status === "PENDENTE") return 1;
+      
+      // Prioridade 2: Data
+      // Para PENDENTE: Ascendente (mais próximo primeiro)
+      // Para Outros: Descendente (mais recentes primeiro)
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (a.status === "PENDENTE") return dateA - dateB;
+      return dateB - dateA;
+    });
 
   // Carrega todos os usuários para o checklist de presença
   useEffect(() => {
@@ -235,19 +251,36 @@ export default function AgendaPage() {
         )}
       </div>
 
-      {/* Filtros por tipo */}
-      <div className="flex flex-wrap gap-2">
-        {tipos.map((t) => (
-          <button key={t} onClick={() => setFiltro(t)}
-            className={[
-              "px-4 py-1.5 rounded-full text-sm font-medium border transition-all duration-150",
-              filtro === t
-                ? "bg-violet-600/25 text-violet-300 border-violet-500/50"
-                : "bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-200",
-            ].join(" ")}>
-            {TIPO_LABELS[t] ?? t}
-          </button>
-        ))}
+      {/* Filtros */}
+      <div className="space-y-3">
+        {/* por tipo */}
+        <div className="flex flex-wrap gap-2">
+          {tipos.map((t) => (
+            <button key={t} onClick={() => setFiltro(t)}
+              className={[
+                "px-4 py-1.5 rounded-full text-xs font-medium border transition-all duration-150",
+                filtro === t
+                  ? "bg-violet-600/25 text-violet-300 border-violet-500/50"
+                  : "bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-200",
+              ].join(" ")}>
+              {TIPO_LABELS[t] ?? t}
+            </button>
+          ))}
+        </div>
+        {/* por status */}
+        <div className="flex flex-wrap gap-2">
+          {["Todos", "PENDENTE", "REALIZADA", "CANCELADA"].map((s) => (
+            <button key={s} onClick={() => setStatusFiltro(s)}
+              className={[
+                "px-4 py-1.5 rounded-full text-xs font-medium border transition-all duration-150",
+                statusFiltro === s
+                  ? "bg-emerald-600/25 text-emerald-300 border-emerald-500/50"
+                  : "bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-200",
+              ].join(" ")}>
+              {STATUS_LABELS[s] ?? s}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Lista */}

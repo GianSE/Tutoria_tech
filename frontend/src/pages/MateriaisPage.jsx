@@ -1,8 +1,24 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Download, BookOpen, Zap, Code2, Lightbulb, Plus, ExternalLink, Pencil, Trash2, Loader2, AlertCircle, Upload, X } from "lucide-react";
+import { 
+  Download, BookOpen, Zap, Code2, Lightbulb, Plus, ExternalLink, Pencil, Trash2, 
+  Loader2, AlertCircle, Upload, X, FileText, Video, Image, FileArchive, FileCode, File 
+} from "lucide-react";
 import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
+
+function getFileIcon(fileName) {
+  if (!fileName) return <File size={13} />;
+  const ext = fileName.split(".").pop().toLowerCase();
+  
+  if (["pdf", "doc", "docx", "txt", "rtf"].includes(ext)) return <FileText size={13} />;
+  if (["mp4", "mov", "avi", "mkv"].includes(ext)) return <Video size={13} />;
+  if (["png", "jpg", "jpeg", "gif", "svg", "webp"].includes(ext)) return <Image size={13} />;
+  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return <FileArchive size={13} />;
+  if (["js", "jsx", "ts", "tsx", "py", "html", "css", "json", "c", "cpp"].includes(ext)) return <FileCode size={13} />;
+  
+  return <File size={13} />;
+}
 
 const CATEGORIAS = ["Todos", "Programação", "Design", "Empreendedorismo", "Desafios"];
 
@@ -289,7 +305,7 @@ export default function MateriaisPage() {
                     <div key={f.id} className="flex items-center gap-2 group">
                       <a href={f.fileUrl} target="_blank" rel="noopener noreferrer"
                         className="flex-1 min-w-0 text-xs text-violet-400 hover:text-violet-300 truncate flex items-center gap-1.5 transition-colors">
-                        <ExternalLink size={11} />
+                        {getFileIcon(f.fileName)}
                         <span className="truncate">{f.fileName}</span>
                       </a>
                       <a href={f.fileUrl} download className="text-slate-600 hover:text-slate-300 transition-colors flex-shrink-0">
