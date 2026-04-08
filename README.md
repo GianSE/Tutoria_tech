@@ -67,14 +67,34 @@ A plataforma utiliza um sistema rigoroso de permissões:
 
 ---
 
+---
+
 ## ⚙️ Como Rodar o Projeto
 
-### Prerequisitos
-- **Docker** e **Docker Compose** instalados.
+### Opção A: Deploy Rápido na Nuvem (Recomendado)
+Suba toda a infraestrutura automaticamente em um VPS (DigitalOcean) usando **Terraform**.
 
-### 1. Configuração do Ambiente
-Crie um arquivo `.env` na pasta `backend/` com as seguintes chaves (exemplo funcional):
+1.  Acesse a pasta: `cd terraform`
+2.  Inicialize: `terraform init`
+3.  Aplique as mudanças: `terraform apply`
+    *   O Terraform solicitará seu Token e o Fingerprint da sua Chave SSH.
+    *   O IP público do servidor será exibido ao final.
+4.  Aguarde ~3 min e acesse o IP nas portas `5173` (App) e `3001` (API).
 
+### Opção B: Rodar Localmente (Desenvolvimento)
+Ideal para testar mudanças usando **Docker Desktop**.
+
+1.  Crie um arquivo `.env` na pasta `backend/` seguindo o modelo abaixo.
+2.  Na raiz do projeto, execute:
+    ```bash
+    docker compose up -d --build
+    ```
+3.  Acesse [http://localhost:5173](http://localhost:5173).
+
+---
+
+## 📄 Variáveis de Ambiente (.env)
+Exemplo para rodar a aplicação localmente:
 ```env
 DATABASE_URL="postgresql://tutoriatech_user:tutoriatech_pass@db:5432/tutoriatech?schema=public"
 PORT=3001
@@ -90,18 +110,7 @@ MINIO_BUCKET_NAME=materiais
 MINIO_PUBLIC_URL=http://localhost:9000
 ```
 
-### 2. Inicialização
-Na raiz do projeto, execute:
-
-```bash
-docker compose up -d --build
-```
-
 ### 3. Acesso e Dados Iniciais (Seed)
-- **Frontend**: [http://localhost:5173](http://localhost:5173)
-- **MinIO Console**: [http://localhost:9001](http://localhost:9001)
-
-#### Login Padrão (Seed Robusto):
 A plataforma já vem com **40+ usuários de teste** (nomes reais, mentoras e equipes).
 - **Admin**: `admin@projeto.com` / Senha: `admin`
 - **Testes**: `mentora1@tutoria.com` ou `aluna1@tutoria.com` / Senha: `password123`
