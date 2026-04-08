@@ -1,191 +1,134 @@
-﻿# Tutoria Tech - Documentacao do Projeto
+# Tutoria Tech - Plataforma de Mentoria e Aprendizagem
 
-Plataforma web para acompanhamento de alunas, mentorias e materiais, com assistente de IA (Rose), base de conhecimento vetorial (RAG com pgvector) e painel de analytics.
+O **Tutoria Tech** é uma plataforma web robusta desenvolvida para apoiar o programa de mentorias, focando no acompanhamento de alunas, gestão de equipes, agenda de encontros e distribuição de materiais de apoio. A plataforma conta com a **Rose**, uma assistente de IA integrada, e armazenamento S3-compatível para arquivos.
 
-## Visao Geral
+---
 
-O sistema foi desenhado para apoiar o programa Tutoria Meninas/Technovation com:
-- Gestao de usuarios por perfil (ADMIN, MENTORA, ALUNA)
-- Gestao de equipes, tutorias, agenda, presenca e progresso
-- Chat com a assistente Rose usando Google Gemini
-- Base de conhecimento com embeddings em PostgreSQL + pgvector
-- Analytics de perguntas com filtros por periodo
-- Frontend React com tema escuro/claro
+## 🚀 Visão Geral
 
-## Stack Tecnica
+O sistema oferece um ambiente centralizado para três perfis distintos:
+- **Administradores**: Gestão total de usuários, configurações de IA e base de conhecimento.
+- **Mentoras**: Gestão de equipes (tutorias), registro de presenças em eventos e publicação de materiais.
+- **Alunas**: Acesso a materiais, acompanhamento do progresso da equipe e chat interativo com a Rose.
+
+---
+
+## 🛠 Stack Técnica
 
 ### Backend
-- Node.js + Fastify
-- Prisma ORM
-- PostgreSQL + pgvector
-- JWT (autenticacao/autorizacao)
-- Google Generative AI SDK
+- **Node.js** com framework **Fastify** (alta performance).
+- **Prisma ORM** para modelagem de dados e migrações.
+- **PostgreSQL** como banco de dados principal.
+- **pgvector** para busca semântica e armazenamento de embeddings.
+- **Google Generative AI SDK (Gemini)** para o motor da Rose.
+- **AWS SDK (S3 Client)** para integração com armazenamento de objetos.
 
 ### Frontend
-- React + Vite
-- Tailwind CSS
-- React Router
-- Recharts (graficos no Analytics IA)
-- Lucide React (icones)
+- **React** (Vite) + **Tailwind CSS** para uma interface moderna e responsiva.
+- **Lucide React** para iconografia dinâmica e intuitiva.
 
-### Infra
-- Docker Compose
-- Containers: db, backend, frontend
+### Infraestrutura & Armazenamento
+- **Docker Compose** para orquestração de containers.
+- **MinIO**: Servidor de armazenamento de objetos S3-compatível para PDFs, vídeos e imagens.
 
-## Estrutura de Pastas
+---
 
-- backend: API, Prisma schema, seeds e rotas
-- frontend: SPA React
-- docker-compose.yml: orquestracao local completa
+## 👮 Controle de Acesso (RBAC)
 
-## Como Rodar (Fluxo Oficial)
+A plataforma utiliza um sistema rigoroso de permissões:
 
-Prerequisito unico:
-- Docker Desktop instalado e em execucao
+| Recurso | Administrador | Mentora | Aluna |
+| :--- | :---: | :---: | :---: |
+| Dashboard Geral | ✅ Total | ✅ Próprio | ✅ Próprio |
+| Gestão de Usuários | ✅ Sim | ❌ Não | ❌ Não |
+| Criar Equipes | ✅ Sim | ✅ Sim | ❌ Não |
+| Gerenciar Presença | ✅ Sim | ✅ Sim | ❌ Não |
+| Publicar Materiais | ✅ Sim | ✅ Sim | ❌ Não |
+| Configurações de IA | ✅ Sim | ❌ Não | ❌ Não |
+| Chat com a Rose | ✅ Sim | ✅ Sim | ✅ Sim |
 
-### 1. Configurar variaveis de ambiente
+---
 
-Crie/edite o arquivo backend/.env com:
+## ✨ Funcionalidades Principais
+
+### 📂 Gestão de Materiais de Apoio
+- **Upload Múltiplo**: Envio de vários arquivos simultaneamente para o MinIO.
+- **Ícones Inteligentes**: Identificação visual automática por tipo de arquivo (PDF, Vídeo, Imagem, Código, Zip).
+- **Privacidade**: Materiais configurados com leitura pública via política de bucket S3.
+
+### 📅 Agenda e Presença
+- **Filtros Avançados**: Filtragem por tipo de evento e por status (Agendado, Realizado, Cancelado).
+- **Ordenação Inteligente**: Eventos agendados aparecem automaticamente no topo da lista.
+- **Checklist de Presença**: Registro rápido de presenças por checklist ou contagem manual.
+
+### 🤖 IA Rose
+- **Rose Chat**: Assistente treinada em documentos específicos via RAG (Retrieval-Augmented Generation).
+- **Base de Conhecimento**: Upload de PDFs para alimentar a memória da Rose usando pgvector.
+
+---
+
+## ⚙️ Como Rodar o Projeto
+
+### Prerequisitos
+- **Docker** e **Docker Compose** instalados.
+
+### 1. Configuração do Ambiente
+Crie um arquivo `.env` na pasta `backend/` com as seguintes chaves (exemplo funcional):
 
 ```env
 DATABASE_URL="postgresql://tutoriatech_user:tutoriatech_pass@db:5432/tutoriatech?schema=public"
 PORT=3001
-JWT_SECRET=mude_esse_segredo_em_producao
+JWT_SECRET=sua_chave_secreta_aqui
+
+# Configurações MinIO
+MINIO_ENDPOINT=minio
+MINIO_PORT=9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_USE_SSL=false
+MINIO_BUCKET_NAME=materiais
+MINIO_PUBLIC_URL=http://localhost:9000
 ```
 
-Observacao importante:
-- A chave da IA (Gemini) e o prompt da Rose sao gerenciados via banco em Configuracao da IA, nao por variavel de ambiente.
-
-### 2. Subir o sistema
-
-Na raiz do projeto:
+### 2. Inicialização
+Na raiz do projeto, execute:
 
 ```bash
 docker compose up -d --build
 ```
 
-Servicos expostos:
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:3001
-- Prisma Studio: http://localhost:5555
-- PostgreSQL: localhost:5432
+### 3. Acesso e Dados Iniciais (Seed)
+- **Frontend**: [http://localhost:5173](http://localhost:5173)
+- **MinIO Console**: [http://localhost:9001](http://localhost:9001)
 
-### 3. Primeiro acesso
+#### Login Padrão (Seed Robusto):
+A plataforma já vem com **40+ usuários de teste** (nomes reais, mentoras e equipes).
+- **Admin**: `admin@projeto.com` / Senha: `admin`
+- **Testes**: `mentora1@tutoria.com` ou `aluna1@tutoria.com` / Senha: `password123`
 
-Credencial seed padrao:
-- Email: admin@projeto.com
-- Senha: admin
+---
 
-## Funcionalidades Principais
+## 🐳 Serviços no Docker Compose
+- `tutoria_db`: PostgreSQL + pgvector na porta 5432.
+- `tutoria_minio`: Armazenamento S3 nas portas 9000 (API) e 9001 (Console).
+- `tutoria_backend`: API Fastify na porta 3001.
+- `tutoria_frontend`: App React na porta 5173.
 
-### Gestao e acompanhamento
-- Dashboard geral
-- Usuarios (ADMIN)
-- Tutorias (ADMIN/MENTORA)
-- Materiais
-- Agenda
-- Perfil
+---
 
-### IA Rose
-- Conversa dedicada com a Rose
-- ChatWidget nas demais paginas
-- Configuracao de IA (ADMIN): chave Gemini e prompt de sistema
-- Base de conhecimento com upload e indexacao vetorial
+## 🛠️ Comandos de Manutenção
 
-### Analytics IA (ADMIN)
-- Termos mais pesquisados
-- Grafico de perguntas por periodo
-- Filtros:
-  - Data inicial
-  - Data final
-  - Agrupamento por dia, semana ou mes
-
-## Rotas de API (Resumo)
-
-Base URL: /api
-
-- auth: /auth
-- usuarios: /users
-- equipes/progresso: /teams
-- materiais: /materials
-- agenda/presenca: /schedules
-- dashboard: /dashboard
-- configuracoes IA e base de conhecimento: /settings
-- chat Rose: /chat
-- analytics de perguntas: /analytics/top-terms
-
-## Banco de Dados
-
-Banco principal: PostgreSQL com extensao pgvector.
-
-Modelos relevantes de IA:
-- system_settings
-- knowledge_documents
-- knowledge_chunks
-- chat_analytics
-
-## Tema da Interface
-
-- Tema escuro e tema claro disponiveis
-- Alteracao no Meu Perfil, ao lado do nome
-- Preferencia salva em localStorage
-
-## Comandos Uteis
-
-Subir/reconstruir:
-
-```bash
-docker compose up -d --build
-```
-
-Reiniciar servicos:
-
+**Reiniciar serviços:**
 ```bash
 docker compose restart backend frontend
 ```
 
-Parar mantendo dados:
-
+**Verificar Logs:**
 ```bash
-docker compose down
+docker compose logs -f backend
 ```
 
-Parar removendo volumes (apaga banco local):
-
+**Atualizar Banco de Dados:**
 ```bash
-docker compose down -v
+docker compose exec backend npx prisma db push
 ```
-
-Logs:
-
-```bash
-docker compose logs backend --tail 100
-docker compose logs frontend --tail 100
-```
-
-## Troubleshooting Rapido
-
-### Chat da Rose responde erro generico
-- Verifique em Configuracao da IA se a chave Gemini foi salva
-- Teste conexao pela propria tela de configuracao
-- Verifique logs do backend
-
-### Grafico do Analytics sem colunas
-- Aplique filtro com intervalo valido
-- Confirme se ha perguntas registradas
-- Confira se backend/frontend foram reiniciados apos atualizacao
-
-### Erros de import no frontend (dependencias)
-- Se houver volume antigo de node_modules no container:
-  - docker compose exec frontend npm install
-  - docker compose restart frontend
-
-## Observacoes de Desenvolvimento
-
-- O fluxo recomendado do projeto e sempre via Docker Compose.
-- Evite setups locais paralelos para nao gerar divergencia de ambiente.
-- Quando alterar schema Prisma, valide sincronizacao do banco no container backend.
-
----
-
-Se quiser, posso adicionar na documentacao um diagrama de arquitetura (frontend -> backend -> postgres/pgvector -> Gemini) e um passo a passo de deploy em VPS.
