@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import path from "path";
 import prisma from "../lib/prisma.js";
 import { requireRole } from "../lib/requireRole.js";
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadBucketCommand, CreateBucketCommand } from "@aws-sdk/client-s3";
 
 const M_ENDPOINT = process.env.MINIO_ENDPOINT || "minio";
 const M_PORT = process.env.MINIO_PORT || "9000";
@@ -168,7 +168,18 @@ export async function settingsRoutes(app) {
       // Cria um filename único para não sobrescrever arquivos no MinIO
       const uniqueFileName = `${Date.now()}-${file.filename}`;
 
-      // Salva no MinIO primeiramente
+      // Garante que o bucket existe antes de salvar
+      try {
+        await s3Client.send(new HeadBucketCommand({ Bucket: BUCKET_NAME }));
+      } catch (headErr) {
+        if (headErr.name === "NotFound" || headErr.name === "NoSuchBucket" || headErr.$metadata?.httpStatusCode === 404) {
+          await s3Client.send(new CreateBucketCommand({ Bucket: BUCKET_NAME }));
+        } else {
+          throw headErr;
+        }
+      }
+
+      // Salva no MinIO
       await s3Client.send(
         new PutObjectCommand({
           Bucket: BUCKET_NAME,

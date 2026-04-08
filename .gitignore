@@ -29,3 +29,4 @@ desktop.ini
 .nyc_output/
 coverage/
 *.tsx.snap
+__pycache__
