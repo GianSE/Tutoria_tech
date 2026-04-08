@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import prisma from "../lib/prisma.js";
 
 export async function chatRoutes(fastify, options) {
@@ -16,13 +15,12 @@ export async function chatRoutes(fastify, options) {
         req.log.error(error);
       });
 
+      // 1. Carregar chave da IA e o prompt do banco
       const settings = await prisma.systemSetting.findMany({
         where: { key: { in: ["GEMINI_API_KEY", "ROSE_SYSTEM_PROMPT"] } },
       });
-
       const settingsMap = new Map(settings.map((item) => [item.key, item.value]));
 
-      // 1. Carregar chave da IA exclusivamente do banco
       const apiKey = (settingsMap.get("GEMINI_API_KEY") || "").trim();
       if (!apiKey) {
         return reply.status(503).send({
@@ -30,65 +28,33 @@ export async function chatRoutes(fastify, options) {
         });
       }
 
-      // 2. Carregar prompt da Rose exclusivamente do banco
-      let systemInstruction = (settingsMap.get("ROSE_SYSTEM_PROMPT") || "").trim();
-      if (!systemInstruction) {
-        return reply.status(503).send({
-          message: "O prompt da Rose ainda nao foi configurado. Um ADMIN precisa configurar a IA no painel.",
-        });
-      }
+      const systemInstruction = (settingsMap.get("ROSE_SYSTEM_PROMPT") || "").trim();
 
-      const genAI = new GoogleGenerativeAI(apiKey);
-      let ragContext = "";
+      // Repassar a pergunta e a chave para o novo microsserviço (python-ia)
+      const pythonApiUrl = process.env.PYTHON_API_URL || "http://python-ia:8000";
 
-      try {
-        const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
-        const embeddingResult = await embeddingModel.embedContent(message);
-        const userVectorValues = embeddingResult?.embedding?.values ?? [];
-
-        if (Array.isArray(userVectorValues) && userVectorValues.length > 0) {
-          const nearestChunks = await prisma.$queryRaw`
-            SELECT content
-            FROM knowledge_chunks
-            ORDER BY embedding <=> ${userVectorValues}::vector
-            LIMIT 5
-          `;
-
-          ragContext = (nearestChunks ?? [])
-            .map((row) => row.content)
-            .filter(Boolean)
-            .join("\n\n");
-        }
-      } catch (embeddingError) {
-        req.log.warn(embeddingError, "Falha ao gerar embedding/buscar contexto RAG. Seguindo sem contexto vetorial.");
-      }
-
-      if (ragContext) {
-        systemInstruction += `\n\n--- BASE DE CONHECIMENTO ---\n${ragContext}`;
-      }
-
-      // 3. Inicializar a IA
-      const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash",
-        systemInstruction,
-      });
-
-      // 4. Iniciar um chat mantendo o histórico
-      const chat = model.startChat({
-        history: history.map((msg) => ({
-          role: msg.role === "user" ? "user" : "model",
-          parts: [{ text: msg.parts[0]?.text || msg.text || "" }],
-        })),
-        generationConfig: {
-          maxOutputTokens: 600,
+      const response = await fetch(`${pythonApiUrl}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          question: message,
+          gemini_api_key: apiKey,
+          system_prompt: systemInstruction,
+          history: history, // Repassa o histórico também
+          context_strategy: "TBD"
+        }),
       });
 
-      // 5. Enviar a nova mensagem do usuário e aguardar resposta
-      const result = await chat.sendMessage(message);
-      const responseText = result.response.text();
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Python IA retornou erro: ${response.status} - ${errText}`);
+      }
 
-      return reply.send({ response: responseText });
+      const pythonData = await response.json();
+
+      return reply.send({ response: pythonData.answer });
     } catch (error) {
       req.log.error(error);
       return reply.status(500).send({ message: "Erro ao processar a mensagem pela IA." });

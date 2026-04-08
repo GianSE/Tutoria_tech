@@ -1,6 +1,6 @@
 services:
   # ─────────────────────────────────────────────
-  #  BANCO DE DADOS — PostgreSQL + pgvector
+  #  1. BANCO DE DADOS — PostgreSQL + pgvector
   # ─────────────────────────────────────────────
   db:
     image: pgvector/pgvector:pg16
@@ -15,7 +15,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
     networks:
-      - tutoria_net
+      - tutoria-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tutoriatech_user -d tutoriatech"]
       interval: 10s
@@ -24,7 +24,31 @@ services:
       start_period: 30s
 
   # ─────────────────────────────────────────────
-  #  BACKEND — Node.js + Fastify + Prisma
+  #  2. ARMAZENAMENTO DE ARQUIVOS — MinIO
+  # ─────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: tutoria_minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000" # API do MinIO
+      - "9001:9001" # Console do MinIO
+    volumes:
+      - minio_data:/data
+    networks:
+      - tutoria-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  #  3. BACKEND — Node.js + Fastify + Prisma
   # ─────────────────────────────────────────────
   backend:
     build:
@@ -34,22 +58,60 @@ services:
     restart: unless-stopped
     env_file:
       - ./backend/.env
-    # Adicionamos "npx prisma studio --host 0.0.0.0 &" logo antes do "npm run dev"
+    environment:
+      # Novas variáveis para integração
+      - PYTHON_API_URL=http://python-ia:8000
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_USE_SSL=false
+      - MINIO_BUCKET_NAME=materiais
     command: sh -c "npx prisma generate && npx prisma db push && npx prisma db seed && npx prisma studio --hostname 0.0.0.0 & npm run dev"
     ports:
-      - "127.0.0.1:3001:3001" # Porta para a API do backend
-      - "127.0.0.1:5555:5555" # Porta para o Prisma Studio
+      - "3001:3001" # Porta para a API do backend
+      - "5555:5555" # Porta para o Prisma Studio
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     networks:
-      - tutoria_net
+      - tutoria-network
     volumes:
       - ./backend:/app
       - /app/node_modules
 
   # ─────────────────────────────────────────────
-  #  FRONTEND — React + Vite + Tailwind CSS
+  #  4. SERVIÇO DE IA — Python + FastAPI
+  # ─────────────────────────────────────────────
+  python-ia:
+    build:
+      context: ./python-ia
+      dockerfile: Dockerfile
+    container_name: tutoria_python_ia
+    restart: unless-stopped
+    environment:
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_SECURE=false
+      - MINIO_BUCKET_NAME=materiais
+      - DB_URL=postgresql://tutoriatech_user:tutoriatech_pass@db:5432/tutoriatech
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - tutoria-network
+    volumes:
+      - ./python-ia:/app
+
+  # ─────────────────────────────────────────────
+  #  5. FRONTEND — React + Vite
   # ─────────────────────────────────────────────
   frontend:
     build:
@@ -58,18 +120,19 @@ services:
     container_name: tutoria_frontend
     restart: unless-stopped
     ports:
-      - "127.0.0.1:5173:5173"
+      - "3000:5173" # Requisição do usuário para porta 3000
     depends_on:
       - backend
     networks:
-      - tutoria_net
+      - tutoria-network
     volumes:
       - ./frontend:/app
       - /app/node_modules
 
 volumes:
   pg_data:
+  minio_data:
 
 networks:
-  tutoria_net:
+  tutoria-network:
     driver: bridge
