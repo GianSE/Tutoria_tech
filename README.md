@@ -77,9 +77,13 @@ Suba toda a infraestrutura automaticamente em um VPS (DigitalOcean) usando **Ter
 1.  Acesse a pasta: `cd terraform`
 2.  Inicialize: `terraform init`
 3.  Aplique as mudanças: `terraform apply`
-    *   O Terraform solicitará seu Token e o Fingerprint da sua Chave SSH.
+    *   O Terraform solicitará: Token, Fingerprint SSH, `domain_name`, `admin_email` e `jwt_secret`.
     *   O IP público do servidor será exibido ao final.
-4.  Aguarde ~3 min e acesse o IP nas portas `5173` (App) e `3001` (API).
+4.  Configure o DNS do seu domínio apontando o registro **A** para o IP do droplet.
+5.  Aguarde ~3 min e acesse **https://SEU_DOMINIO**.
+
+> O proxy reverso (Caddy) já gera o HTTPS automaticamente e roteia `/api` para o backend.
+> O MinIO fica disponível em `https://SEU_DOMINIO/minio`.
 
 ### Opção B: Rodar Localmente (Desenvolvimento)
 Ideal para testar mudanças usando **Docker Desktop**.
@@ -108,6 +112,21 @@ MINIO_SECRET_KEY=minioadmin
 MINIO_USE_SSL=false
 MINIO_BUCKET_NAME=materiais
 MINIO_PUBLIC_URL=http://localhost:9000
+```
+
+## 🚀 CI/CD (Deploy automático)
+Você pode automatizar o deploy com GitHub Actions via SSH.
+
+Secrets esperados no GitHub:
+- `DEPLOY_HOST` (IP do droplet)
+- `DEPLOY_USER` (ex: root)
+- `DEPLOY_SSH_KEY` (chave privada com acesso ao servidor)
+
+O pipeline executa:
+```
+cd /opt/Tutoria_tech
+git pull
+COMPOSE_PROFILES=prod docker compose up -d --build
 ```
 
 ### 3. Acesso e Dados Iniciais (Seed)

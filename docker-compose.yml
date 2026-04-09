@@ -67,7 +67,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_USE_SSL=false
       - MINIO_BUCKET_NAME=materiais
-      - MINIO_PUBLIC_URL=http://localhost:9000
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
     command: sh -c "npx prisma generate && npx prisma db push && npx prisma db seed && npx prisma studio --hostname 0.0.0.0 & npm run dev"
     ports:
       - "3001:3001" # Porta para a API do backend
@@ -130,9 +130,36 @@ services:
       - ./frontend:/app
       - /app/node_modules
 
+  # ─────────────────────────────────────────────
+  #  6. REVERSE PROXY — Caddy (HTTPS)
+  # ─────────────────────────────────────────────
+  caddy:
+    image: caddy:2
+    container_name: tutoria_caddy
+    restart: unless-stopped
+    profiles: ["prod"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - CADDY_DOMAIN=${CADDY_DOMAIN}
+      - CADDY_EMAIL=${CADDY_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+      - minio
+    networks:
+      - tutoria-network
+
 volumes:
   pg_data:
   minio_data:
+  caddy_data:
+  caddy_config:
 
 networks:
   tutoria-network:

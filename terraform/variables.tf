@@ -20,3 +20,13 @@ variable "jwt_secret" {
   type        = string
   default     = "mude_em_producao_123"
 }
+
+variable "domain_name" {
+  description = "Dominio principal para HTTPS (ex: app.seudominio.com)"
+  type        = string
+}
+
+variable "admin_email" {
+  description = "Email usado pelo Caddy para emitir certificados"
+  type        = string
+}

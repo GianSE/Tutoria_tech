@@ -1,0 +1,17 @@
+{
+  email {$CADDY_EMAIL}
+}
+
+{$CADDY_DOMAIN} {
+  encode gzip
+
+  handle /api/* {
+    reverse_proxy backend:3001
+  }
+
+  handle /minio/* {
+    reverse_proxy minio:9000
+  }
+
+  reverse_proxy frontend:5173
+}

@@ -37,7 +37,13 @@ resource "digitalocean_droplet" "tutoria_tech_server" {
               cd Tutoria_tech
 
               # 3. Configurar Variáveis de Ambiente
-              cat <<EOT >> backend/.env
+              cat <<EOT > .env
+              CADDY_DOMAIN=${var.domain_name}
+              CADDY_EMAIL=${var.admin_email}
+              MINIO_PUBLIC_URL=https://${var.domain_name}/minio
+              EOT
+
+              cat <<EOT > backend/.env
               DATABASE_URL="postgresql://tutoriatech_user:tutoriatech_pass@db:5432/tutoriatech?schema=public"
               PORT=3001
               JWT_SECRET="${var.jwt_secret}"
@@ -47,12 +53,12 @@ resource "digitalocean_droplet" "tutoria_tech_server" {
               MINIO_SECRET_KEY=minioadmin
               MINIO_USE_SSL=false
               MINIO_BUCKET_NAME=materiais
-              # No servidor, o link público precisa ser o IP ou Domínio
-              MINIO_PUBLIC_URL=http://$(curl -s http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address):9000
+              # No servidor, o link público usa o domínio com HTTPS via Caddy
+              MINIO_PUBLIC_URL=https://${var.domain_name}/minio
               EOT
 
               # 4. Rodar Aplicação
-              docker compose up -d --build
+              COMPOSE_PROFILES=prod docker compose up -d --build
               EOF
 }
 
@@ -68,31 +74,17 @@ resource "digitalocean_firewall" "tutoria_tech_fw" {
     source_addresses = ["0.0.0.0/0", "::/0"]
   }
 
-  # Frontend (React)
+  # HTTP
   inbound_rule {
     protocol         = "tcp"
-    port_range       = "5173"
+    port_range       = "80"
     source_addresses = ["0.0.0.0/0", "::/0"]
   }
 
-  # Backend (API)
+  # HTTPS
   inbound_rule {
     protocol         = "tcp"
-    port_range       = "3001"
-    source_addresses = ["0.0.0.0/0", "::/0"]
-  }
-
-  # MinIO API
-  inbound_rule {
-    protocol         = "tcp"
-    port_range       = "9000"
-    source_addresses = ["0.0.0.0/0", "::/0"]
-  }
-
-  # MinIO Console (Opcional)
-  inbound_rule {
-    protocol         = "tcp"
-    port_range       = "9001"
+    port_range       = "443"
     source_addresses = ["0.0.0.0/0", "::/0"]
   }
 
