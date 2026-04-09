@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Loader2, Bot } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Bot, Trash2 } from "lucide-react";
 import { apiFetch } from "../lib/api";
+import { useChat } from "../context/ChatContext";
 
 // Helper to parse basic markdown bold (**text**)
 const formatText = (text) => {
@@ -20,12 +21,19 @@ export default function ChatWidget() {
   ];
 
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    { role: "model", text: "Olá! Eu sou a Rose, a assistente virtual do Tutoria Tech. Como posso ajudar-te hoje? 🌟" }
-  ]);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  const {
+    activeConversation,
+    activeId,
+    pendingIds,
+    appendMessage,
+    setPending,
+    clearConversation,
+    buildHistory,
+  } = useChat();
+  const messages = activeConversation?.messages ?? [];
+  const isLoading = pendingIds.includes(activeId);
 
   // Scroll to bottom always
   useEffect(() => {
@@ -36,21 +44,16 @@ export default function ChatWidget() {
 
   const sendUserMessage = async (userMsg) => {
     if (!userMsg?.trim() || isLoading) return;
+
+    const conversationId = activeConversation?.id;
+    if (!conversationId) return;
+    const historyToSend = buildHistory(activeConversation);
     
     // Optimistic UI update
-    const newMessages = [...messages, { role: "user", text: userMsg }];
-    setMessages(newMessages);
-    setIsLoading(true);
+    appendMessage(conversationId, { role: "user", text: userMsg });
+    setPending(conversationId, true);
 
     try {
-      // Formata o histórico excluindo a mensagem atual e ignorando a primeira (saudação da Rose)
-      const historyToSend = messages
-        .slice(1)
-        .map(m => ({
-          role: m.role,
-          parts: [{ text: m.text }]
-        }));
-
       const response = await apiFetch("/api/chat", {
         method: "POST",
         body: JSON.stringify({
@@ -62,16 +65,19 @@ export default function ChatWidget() {
       const data = await response.json();
       
       if (response.ok) {
-        setMessages([...newMessages, { role: "model", text: data.response }]);
+        appendMessage(conversationId, { role: "model", text: data.response });
       } else {
         const serverMessage = data?.message || "Desculpa, ocorreu um erro ao contactar o servidor. 😢";
-        setMessages([...newMessages, { role: "model", text: serverMessage }]);
+        appendMessage(conversationId, { role: "model", text: serverMessage });
       }
     } catch (err) {
       console.error(err);
-      setMessages([...newMessages, { role: "model", text: "Desculpa, parece que não estou a conseguir pensar agora mesmo. Consegues tentar novamente mais tarde?" }]);
+      appendMessage(conversationId, {
+        role: "model",
+        text: "Desculpa, parece que não estou a conseguir pensar agora mesmo. Consegues tentar novamente mais tarde?",
+      });
     } finally {
-      setIsLoading(false);
+      setPending(conversationId, false);
     }
   };
 
@@ -85,11 +91,16 @@ export default function ChatWidget() {
   };
 
   const showSuggestions = messages.filter((msg) => msg.role === "user").length === 0;
+  const handleClearConversation = () => {
+    if (!activeId) return;
+    if (!window.confirm("Deseja limpar esta conversa?")) return;
+    clearConversation(activeId);
+  };
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
       {isOpen && (
-        <div className="bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl shadow-violet-500/10 mb-4 w-80 sm:w-96 overflow-hidden flex flex-col transition-all duration-300 h-[32rem]">
+        <div className="bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl shadow-violet-500/10 mb-4 w-[28rem] sm:w-[34rem] overflow-hidden flex flex-col transition-all duration-300 h-[36rem]">
           {/* Header */}
           <div className="bg-slate-800 border-b border-slate-700/60 p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -101,12 +112,22 @@ export default function ChatWidget() {
                 <span className="text-violet-400 text-[10px] font-medium tracking-wide">TUTORIA TECH</span>
               </div>
             </div>
-            <button 
-              onClick={() => setIsOpen(false)}
-              className="text-slate-400 hover:text-white hover:bg-slate-700 p-1.5 rounded-lg transition-colors"
-            >
-              <X size={18} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleClearConversation}
+                disabled={isLoading}
+                className="text-slate-400 hover:text-white hover:bg-slate-700 p-1.5 rounded-lg transition-colors disabled:opacity-50"
+                title="Limpar conversa"
+              >
+                <Trash2 size={16} />
+              </button>
+              <button 
+                onClick={() => setIsOpen(false)}
+                className="text-slate-400 hover:text-white hover:bg-slate-700 p-1.5 rounded-lg transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
