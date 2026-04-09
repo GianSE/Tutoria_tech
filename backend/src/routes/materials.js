@@ -10,6 +10,13 @@ const M_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || "minioadmin";
 const M_SECRET_KEY = process.env.MINIO_SECRET_KEY || "minioadmin";
 const M_SECURE     = process.env.MINIO_USE_SSL === "true";
 const BUCKET_NAME  = process.env.MINIO_BUCKET_NAME || "materiais";
+const PYTHON_API_URL = process.env.PYTHON_API_URL || "http://python-ia:8000";
+
+const KNOWLEDGE_EXTS = new Set([".md", ".pdf", ".docx", ".txt", ".xlsx", ".csv", ".pptx"]);
+
+function isAllowedKnowledgeExtension(filename = "") {
+  return KNOWLEDGE_EXTS.has(path.extname(filename).toLowerCase());
+}
 
 const s3Client = new S3Client({
   endpoint: `${M_SECURE ? "https" : "http"}://${M_ENDPOINT}:${M_PORT}`,
@@ -63,6 +70,24 @@ async function uploadToMinio(buffer, filename, mimetype) {
     key,
     url: `${publicBase}/${BUCKET_NAME}/${key}`,
   };
+}
+
+async function enqueueKnowledgeIngestion({ documentId, fileKey, apiKey }) {
+  if (!apiKey) {
+    return { status: "missing_api_key" };
+  }
+
+  fetch(`${PYTHON_API_URL}/process_knowledge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      document_id: documentId,
+      file_name: fileKey,
+      gemini_api_key: apiKey,
+    }),
+  }).catch((err) => console.error("Falha ao avisar python-ia sobre novo knowledge document:", err));
+
+  return { status: "queued" };
 }
 
 /**
@@ -133,9 +158,45 @@ export async function materialRoutes(app) {
         include: { files: true },
       });
 
+      const keySetting = await prisma.systemSetting.findUnique({ where: { key: "GEMINI_API_KEY" } });
+      const apiKey = keySetting?.value?.trim() || "";
+      const knowledgeResults = [];
+
+      for (const file of uploadedFiles) {
+        if (!isAllowedKnowledgeExtension(file.fileName)) {
+          knowledgeResults.push({ fileName: file.fileName, status: "skipped_unsupported" });
+          continue;
+        }
+
+        try {
+          const created = await prisma.knowledgeDocument.create({
+            data: { filename: file.key },
+            select: { id: true },
+          });
+
+          const enqueueResult = await enqueueKnowledgeIngestion({
+            documentId: created.id,
+            fileKey: file.key,
+            apiKey,
+          });
+
+          knowledgeResults.push({
+            fileName: file.fileName,
+            documentId: created.id,
+            status: enqueueResult.status,
+          });
+        } catch (err) {
+          console.error("Falha ao criar knowledge document:", err);
+          knowledgeResults.push({ fileName: file.fileName, status: "failed" });
+        }
+      }
+
       await logActivity(`Novo material publicado: "${title}" (${uploadedFiles.length} arquivo(s))`);
       console.log("✨ Sucesso no upload!");
-      return reply.status(201).send(material);
+      return reply.status(201).send({
+        ...material,
+        knowledge: knowledgeResults,
+      });
     } catch (error) {
       console.error("💥 Erro no POST /api/materials:", error);
       return reply.status(500).send({ message: error.message || "Erro ao realizar upload do material." });
@@ -182,8 +243,8 @@ export async function materialRoutes(app) {
       for await (const part of parts) {
         if (part.file) {
           const buffer = await part.toBuffer();
-          const { url } = await uploadToMinio(buffer, part.filename, part.mimetype);
-          uploadedFiles.push({ fileName: part.filename, fileUrl: url });
+          const { key, url } = await uploadToMinio(buffer, part.filename, part.mimetype);
+          uploadedFiles.push({ fileName: part.filename, fileUrl: url, key });
         }
       }
 
@@ -199,8 +260,45 @@ export async function materialRoutes(app) {
         }))
       });
 
+      const keySetting = await prisma.systemSetting.findUnique({ where: { key: "GEMINI_API_KEY" } });
+      const apiKey = keySetting?.value?.trim() || "";
+      const knowledgeResults = [];
+
+      for (const file of uploadedFiles) {
+        if (!isAllowedKnowledgeExtension(file.fileName)) {
+          knowledgeResults.push({ fileName: file.fileName, status: "skipped_unsupported" });
+          continue;
+        }
+
+        try {
+          const created = await prisma.knowledgeDocument.create({
+            data: { filename: file.key },
+            select: { id: true },
+          });
+
+          const enqueueResult = await enqueueKnowledgeIngestion({
+            documentId: created.id,
+            fileKey: file.key,
+            apiKey,
+          });
+
+          knowledgeResults.push({
+            fileName: file.fileName,
+            documentId: created.id,
+            status: enqueueResult.status,
+          });
+        } catch (err) {
+          console.error("Falha ao criar knowledge document:", err);
+          knowledgeResults.push({ fileName: file.fileName, status: "failed" });
+        }
+      }
+
       console.log(`✅ Adicionados ${uploadedFiles.length} arquivos ao material ${materialId}`);
-      return reply.status(201).send({ message: "Arquivos adicionados com sucesso.", count: uploadedFiles.length });
+      return reply.status(201).send({
+        message: "Arquivos adicionados com sucesso.",
+        count: uploadedFiles.length,
+        knowledge: knowledgeResults,
+      });
     } catch (error) {
       console.error("💥 Erro ao anexar arquivos:", error);
       return reply.status(500).send({ message: "Erro ao anexar arquivos ao material." });

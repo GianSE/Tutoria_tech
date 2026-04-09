@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 
@@ -32,6 +33,11 @@ export default function ConfiguracoesIAPage() {
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [queue, setQueue] = useState([]);
+  const [processingId, setProcessingId] = useState(null);
+  const [processingAttempts, setProcessingAttempts] = useState(0);
+  const [failedIds, setFailedIds] = useState([]);
+  const [canceledIds, setCanceledIds] = useState([]);
   const [deletingId, setDeletingId] = useState(null);
 
   const [success, setSuccess] = useState("");
@@ -45,7 +51,9 @@ export default function ConfiguracoesIAPage() {
       throw new Error(data.message ?? "Erro ao carregar base de conhecimento.");
     }
 
-    setKnowledgeDocs(Array.isArray(data) ? data : []);
+    const list = Array.isArray(data) ? data : [];
+    setKnowledgeDocs(list);
+    return list;
   };
 
   useEffect(() => {
@@ -151,6 +159,108 @@ export default function ConfiguracoesIAPage() {
   function handleOpenUpload() {
     fileInputRef.current?.click();
   }
+
+  function getChunksCount(doc) {
+    return doc?._count?.chunks ?? doc?.chunksCount ?? 0;
+  }
+
+  function enqueueReprocess(id) {
+    setError("");
+    setSuccess("");
+    setCanceledIds((prev) => prev.filter((value) => value !== id));
+    setFailedIds((prev) => prev.filter((value) => value !== id));
+    setQueue((prev) => {
+      if (prev.includes(id) || processingId === id) return prev;
+      return [...prev, id];
+    });
+  }
+
+  function cancelReprocess(id) {
+    setQueue((prev) => prev.filter((value) => value !== id));
+    if (processingId === id) {
+      setProcessingId(null);
+      setProcessingAttempts(0);
+    }
+    setCanceledIds((prev) => Array.from(new Set([...prev, id])));
+  }
+
+  async function startReprocess(id) {
+    setProcessingId(id);
+    setProcessingAttempts(0);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await apiFetch("/api/settings/knowledge/reprocess", {
+        method: "POST",
+        body: JSON.stringify({ ids: [id] }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message ?? "Erro ao enfileirar reprocessamento.");
+      }
+
+      setSuccess(data.message ?? "Arquivo enfileirado para vetorizacao.");
+    } catch (err) {
+      setError(err.message || "Erro inesperado ao enfileirar.");
+      setFailedIds((prev) => Array.from(new Set([...prev, id])));
+      setProcessingId(null);
+    }
+  }
+
+  useEffect(() => {
+    if (processingId || queue.length === 0) return;
+    const [nextId, ...rest] = queue;
+    setQueue(rest);
+    startReprocess(nextId);
+  }, [queue, processingId]);
+
+  useEffect(() => {
+    if (!processingId) return;
+
+    let cancelled = false;
+    const maxAttempts = 40;
+    const intervalId = setInterval(async () => {
+      try {
+        const list = await loadKnowledge();
+        if (cancelled) return;
+
+        const doc = list.find((item) => item.id === processingId);
+        if (!doc) {
+          setProcessingId(null);
+          setProcessingAttempts(0);
+          return;
+        }
+
+        if (getChunksCount(doc) > 0) {
+          setCanceledIds((prev) => prev.filter((value) => value !== processingId));
+          setFailedIds((prev) => prev.filter((value) => value !== processingId));
+          setProcessingId(null);
+          setProcessingAttempts(0);
+          return;
+        }
+
+        setProcessingAttempts((prev) => {
+          const next = prev + 1;
+          if (next >= maxAttempts) {
+            setFailedIds((items) => Array.from(new Set([...items, processingId])));
+            setProcessingId(null);
+            setError("Nao foi possivel concluir a vetorizacao desse arquivo. Tente novamente.");
+            return 0;
+          }
+          return next;
+        });
+      } catch {
+        // Ignora falhas pontuais de polling
+      }
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [processingId]);
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
@@ -343,7 +453,7 @@ export default function ConfiguracoesIAPage() {
           onChange={handleFileChange}
         />
 
-        <div>
+        <div className="flex flex-wrap gap-3">
           <button
             type="button"
             onClick={handleOpenUpload}
@@ -361,15 +471,92 @@ export default function ConfiguracoesIAPage() {
               Nenhum arquivo enviado ainda.
             </div>
           ) : (
-            knowledgeDocs.map((doc) => (
+            knowledgeDocs.map((doc) => {
+              const chunksCount = getChunksCount(doc);
+              const isProcessing = processingId === doc.id;
+              const isQueued = queue.includes(doc.id);
+              const isFailed = failedIds.includes(doc.id);
+              const isCanceled = canceledIds.includes(doc.id);
+              const isDone = chunksCount > 0;
+              const statusText = isProcessing
+                ? "Vetorizando"
+                : isQueued
+                ? "Na fila"
+                : isDone
+                ? "OK"
+                : isCanceled
+                ? "Cancelado"
+                : isFailed
+                ? "Falhou"
+                : "Pendente";
+              const statusClass = isProcessing
+                ? "text-sky-300"
+                : isQueued
+                ? "text-amber-300"
+                : isDone
+                ? "text-emerald-400"
+                : isCanceled
+                ? "text-red-400"
+                : isFailed
+                ? "text-red-400"
+                : "text-slate-500";
+
+              return (
               <div
                 key={doc.id}
                 className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 flex items-center gap-3"
               >
                 <FileText size={16} className="text-slate-400 flex-shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-slate-100 text-sm font-medium truncate">{doc.filename}</p>
+                  {doc.fileUrl ? (
+                    <a
+                      href={doc.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-slate-100 text-sm font-medium truncate hover:underline"
+                      title="Abrir arquivo"
+                    >
+                      {doc.filename}
+                    </a>
+                  ) : (
+                    <p className="text-slate-100 text-sm font-medium truncate">{doc.filename}</p>
+                  )}
                   <p className="text-slate-500 text-xs">Enviado em {formatDate(doc.createdAt)}</p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  {isProcessing ? (
+                    <Loader2 size={14} className="animate-spin text-sky-300" />
+                  ) : isDone ? (
+                    <CheckCircle2 size={14} className="text-emerald-400" />
+                  ) : isFailed ? (
+                    <AlertCircle size={14} className="text-red-400" />
+                  ) : (
+                    <AlertCircle size={14} className="text-slate-500" />
+                  )}
+                  {statusText ? <span className={statusClass}>{statusText}</span> : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  {(isProcessing || isQueued) ? (
+                    <button
+                      type="button"
+                      onClick={() => cancelReprocess(doc.id)}
+                      className="px-3 py-1.5 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-xs flex items-center gap-2"
+                      title="Cancelar vetorizacao"
+                    >
+                      <X size={12} />
+                      Cancelar
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => enqueueReprocess(doc.id)}
+                      className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800 text-xs flex items-center gap-2"
+                      title="Vetorizar este arquivo"
+                    >
+                      <RefreshCcw size={12} />
+                      {isDone ? "Reprocessar" : "Vetorizar"}
+                    </button>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -385,7 +572,8 @@ export default function ConfiguracoesIAPage() {
                   )}
                 </button>
               </div>
-            ))
+            );
+            })
           )}
         </div>
       </section>

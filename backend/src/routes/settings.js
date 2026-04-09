@@ -10,6 +10,7 @@ const M_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || "minioadmin";
 const M_SECRET_KEY = process.env.MINIO_SECRET_KEY || "minioadmin";
 const M_SECURE = process.env.MINIO_USE_SSL === "true";
 const BUCKET_NAME = process.env.MINIO_BUCKET_NAME || "materiais";
+const MINIO_PUBLIC_URL = process.env.MINIO_PUBLIC_URL || `${M_SECURE ? "https" : "http"}://${M_ENDPOINT}:${M_PORT}`;
 
 const s3Client = new S3Client({
   endpoint: `${M_SECURE ? "https" : "http"}://${M_ENDPOINT}:${M_PORT}`,
@@ -149,10 +150,18 @@ export async function settingsRoutes(app) {
         id: true,
         filename: true,
         createdAt: true,
+        _count: {
+          select: { chunks: true },
+        },
       },
     });
 
-    return reply.send(docs);
+    const payload = docs.map((doc) => ({
+      ...doc,
+      fileUrl: `${MINIO_PUBLIC_URL}/${BUCKET_NAME}/${doc.filename}`,
+    }));
+
+    return reply.send(payload);
   });
 
   app.post("/knowledge/upload", adminOnly, async (req, reply) => {
@@ -161,6 +170,10 @@ export async function settingsRoutes(app) {
 
       if (!file) {
         return reply.status(400).send({ message: "Nenhum arquivo foi enviado." });
+      }
+
+      if (!isAllowedKnowledgeExtension(file.filename)) {
+        return reply.status(400).send({ message: "Formato de arquivo nao suportado para base de conhecimento." });
       }
 
       const buffer = await file.toBuffer();
@@ -209,18 +222,83 @@ export async function settingsRoutes(app) {
           body: JSON.stringify({
             document_id: created.id,
             file_name: uniqueFileName,
-            gemini_api_key: apiKey
+            gemini_api_key: apiKey,
           }),
         }).catch(err => req.log.error(err, "Falha ao avisar python-ia sobre novo knowledge document"));
+      } else {
+        req.log.warn("GEMINI_API_KEY ausente; documento salvo sem iniciar processamento.");
       }
 
       return reply.status(201).send({
-        message: "Arquivo recebido. A IA está processando o documento em segundo plano.",
+        message: apiKey
+          ? "Arquivo recebido. A IA está processando o documento em segundo plano."
+          : "Arquivo recebido, mas a Gemini API Key nao esta configurada. Configure a chave para processar.",
         data: created,
       });
     } catch (error) {
       req.log.error(error);
       return reply.status(500).send({ message: "Erro ao processar upload de arquivo." });
+    }
+  });
+
+  app.post("/knowledge/reprocess", adminOnly, async (req, reply) => {
+    try {
+      const keySetting = await prisma.systemSetting.findUnique({
+        where: { key: "GEMINI_API_KEY" },
+      });
+      const apiKey = keySetting?.value?.trim() || "";
+
+      if (!apiKey) {
+        return reply.status(400).send({ message: "GEMINI_API_KEY nao configurada." });
+      }
+
+      const { ids } = req.body ?? {};
+      const normalizedIds = Array.isArray(ids)
+        ? ids.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)
+        : [];
+
+      const docs = await prisma.knowledgeDocument.findMany({
+        where: normalizedIds.length > 0 ? { id: { in: normalizedIds } } : undefined,
+        select: { id: true, filename: true },
+      });
+
+      if (docs.length === 0) {
+        return reply.status(404).send({ message: "Nenhum documento encontrado para reprocessar." });
+      }
+
+      const pythonApiUrl = process.env.PYTHON_API_URL || "http://python-ia:8000";
+      const results = [];
+      let queuedCount = 0;
+
+      for (const doc of docs) {
+        if (!isAllowedKnowledgeExtension(doc.filename)) {
+          results.push({ id: doc.id, filename: doc.filename, status: "skipped_unsupported" });
+          continue;
+        }
+
+        await prisma.knowledgeChunk.deleteMany({ where: { documentId: doc.id } });
+
+        fetch(`${pythonApiUrl}/process_knowledge`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            document_id: doc.id,
+            file_name: doc.filename,
+            gemini_api_key: apiKey,
+          }),
+        }).catch((err) => req.log.error(err, "Falha ao reprocessar knowledge document"));
+
+        results.push({ id: doc.id, filename: doc.filename, status: "queued" });
+        queuedCount += 1;
+      }
+
+      return reply.send({
+        message: `Reprocessamento enfileirado para ${queuedCount} documento(s).`,
+        data: results,
+      });
+    } catch (error) {
+      req.log.error(error);
+      return reply.status(500).send({ message: "Erro ao reprocessar documentos." });
     }
   });
 

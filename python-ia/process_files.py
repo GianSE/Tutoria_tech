@@ -102,16 +102,17 @@ def process_knowledge(req: ProcessKnowledgeRequest):
         
         for c in chunks:
             embed_res = genai.embed_content(
-                model="models/text-embedding-004",
+                model="models/gemini-embedding-2-preview",
                 content=c,
-                task_type="retrieval_document"
+                task_type="retrieval_document",
+                output_dimensionality=768
             )
             embedding = embed_res['embedding']
             vector_str = "[" + ",".join(str(x) for x in embedding) + "]"
             
             cur.execute("""
-                INSERT INTO knowledge_chunks (id, "documentId", content, embedding)
-                VALUES (gen_random_uuid(), %s, %s, %s::vector)
+                INSERT INTO knowledge_chunks (id, "documentId", content, embedding, "createdAt", "updatedAt")
+                VALUES (gen_random_uuid(), %s, %s, %s::vector, NOW(), NOW())
             """, (req.document_id, c, vector_str))
             
         conn.commit()

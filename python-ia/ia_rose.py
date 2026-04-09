@@ -40,9 +40,10 @@ def chat(req: ChatRequest):
         contexto_rag = ""
         try:
             embed_res = genai.embed_content(
-                model="models/text-embedding-004",
+                model="models/gemini-embedding-2-preview",
                 content=req.question,
-                task_type="retrieval_query"
+                task_type="retrieval_query",
+                output_dimensionality=768
             )
             query_embedding = embed_res['embedding']
             
