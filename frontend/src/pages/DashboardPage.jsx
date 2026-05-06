@@ -198,7 +198,7 @@ export default function DashboardPage() {
   const greeting = getGreeting();
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pt-4 md:pt-0">
+    <div className="space-y-5 max-w-7xl mx-auto">
       <div>
         <h2 className="text-2xl font-bold text-white">
           {greeting.text}, {user.name?.split(" ")[0]}! {greeting.emoji}

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { 
-  Users, ExternalLink, Plus, Pencil, Trash2, Loader2, AlertCircle, MessageCircle, 
+import {
+  Users, ExternalLink, Plus, Pencil, Trash2, Loader2, AlertCircle, MessageCircle,
   Send, Eye, Search, Filter, X, ChevronDown, LayoutGrid, List, User, Lock, UserPlus, LogIn
 } from "lucide-react";
 import Modal from "../components/Modal";
@@ -8,10 +8,10 @@ import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 
 const STATUS_STYLE = {
-  IDEACAO:           "bg-amber-500/15  text-amber-400  border-amber-500/30",
+  IDEACAO: "bg-amber-500/15  text-amber-400  border-amber-500/30",
   EM_DESENVOLVIMENTO: "bg-blue-500/15   text-blue-400   border-blue-500/30",
-  PROTOTIPAGEM:      "bg-violet-500/15 text-violet-400 border-violet-500/30",
-  CONCLUIDO:         "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  PROTOTIPAGEM: "bg-violet-500/15 text-violet-400 border-violet-500/30",
+  CONCLUIDO: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
 };
 
 const STATUS_LABELS = {
@@ -31,28 +31,28 @@ export default function TutoriasPage() {
   const isAdmin = user?.role === "ADMIN";
   const isStudent = user?.role === "ALUNA";
 
-  const [teams, setTeams]           = useState([]);
-  const [allUsers, setAllUsers]     = useState([]);
-  const [loading, setLoading]       = useState(true);
+  const [teams, setTeams] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
-  const [search, setSearch]         = useState("");
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
-  const [viewMode, setViewMode]     = useState("grid"); 
-  const [modalOpen, setModalOpen]   = useState(false);
-  const [editingId, setEditingId]   = useState(null);
+  const [viewMode, setViewMode] = useState("grid");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
-  const [viewTeam, setViewTeam]     = useState(null);
-  const [joinTeam, setJoinTeam]     = useState(null);
-  const [joinCode, setJoinCode]     = useState("");
-  const [joining, setJoining]       = useState(false);
-  const [form, setForm]             = useState(EMPTY_FORM);
-  const [saving, setSaving]         = useState(false);
-  const [deleting, setDeleting]     = useState(false);
-  const [formError, setFormError]   = useState("");
+  const [viewTeam, setViewTeam] = useState(null);
+  const [joinTeam, setJoinTeam] = useState(null);
+  const [joinCode, setJoinCode] = useState("");
+  const [joining, setJoining] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [formError, setFormError] = useState("");
 
   const mentoras = allUsers.filter((u) => u.role === "MENTORA");
-  const alunas   = allUsers.filter((u) => u.role === "ALUNA");
+  const alunas = allUsers.filter((u) => u.role === "ALUNA");
 
   const fetchTeams = useCallback(async () => {
     try {
@@ -88,14 +88,14 @@ export default function TutoriasPage() {
   const openEdit = (team) => {
     setEditingId(team.id);
     setForm({
-      name:        team.name,
-      description:  team.description ?? "",
-      mentorId:    String(team.mentorId),
-      telegramUrl:  team.telegramUrl  ?? "",
-      whatsappUrl:  team.whatsappUrl  ?? "",
-      accessCode:   team.accessCode   ?? "",
-      status:       team.status,
-      studentIds:   team.students?.map((s) => s.id) ?? [],
+      name: team.name,
+      description: team.description ?? "",
+      mentorId: String(team.mentorId),
+      telegramUrl: team.telegramUrl ?? "",
+      whatsappUrl: team.whatsappUrl ?? "",
+      accessCode: team.accessCode ?? "",
+      status: team.status,
+      studentIds: team.students?.map((s) => s.id) ?? [],
     });
     setFormError("");
     setModalOpen(true);
@@ -116,14 +116,14 @@ export default function TutoriasPage() {
     setSaving(true);
     try {
       const payload = {
-        name:         form.name,
-        description:  form.description || null,
-        mentorId:     Number(form.mentorId),
-        telegramUrl:  form.telegramUrl  || null,
-        whatsappUrl:  form.whatsappUrl  || null,
-        accessCode:   form.accessCode   || null,
-        status:       form.status,
-        studentIds:   form.studentIds,
+        name: form.name,
+        description: form.description || null,
+        mentorId: Number(form.mentorId),
+        telegramUrl: form.telegramUrl || null,
+        whatsappUrl: form.whatsappUrl || null,
+        accessCode: form.accessCode || null,
+        status: form.status,
+        studentIds: form.studentIds,
       };
 
       const res = await apiFetch(
@@ -194,12 +194,12 @@ export default function TutoriasPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+    <div className="space-y-4 max-w-7xl mx-auto pb-4">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">Tutorias</h2>
-          <p className="text-slate-400 text-sm mt-1">Relação de equipes, mentoras, alunas e projetos.</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight">Tutorias</h2>
+          <p className="text-slate-400 text-sm mt-0.5">Relação de equipes, mentoras, alunas e projetos.</p>
         </div>
         <div className="flex items-center gap-3 self-start md:self-auto">
           <div className="hidden md:flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700 mr-1">
@@ -257,7 +257,7 @@ export default function TutoriasPage() {
                 onClick={() => setViewTeam(team)}
                 className={`card hover:border-violet-500/40 transition-all duration-300 flex cursor-pointer group relative overflow-hidden p-0
                            ${viewMode === "grid" ? "flex-col" : "flex-row items-center min-h-[80px]"}`}>
-                
+
                 <div className="absolute inset-0 bg-gradient-to-tr from-violet-500/0 via-violet-500/0 to-violet-500/[0.02] pointer-events-none" />
 
                 {/* Status Strip / Header */}
@@ -379,12 +379,12 @@ export default function TutoriasPage() {
               <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                 <p className="text-[9px] text-slate-500 uppercase font-bold mb-3 tracking-wider">Canais de Comunicação</p>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <a href={viewTeam.whatsappUrl || "#"} target="_blank" rel="noopener noreferrer" onClick={(e) => { if(!isMember(viewTeam) && isStudent) { e.preventDefault(); setJoinTeam(viewTeam); } }}
-                     className={`flex-1 flex items-center justify-center gap-2.5 py-3 rounded-lg font-bold text-xs border transition-all ${viewTeam.whatsappUrl ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20" : "bg-slate-900/50 text-slate-700 border-slate-800 pointer-events-none"}`}>
+                  <a href={viewTeam.whatsappUrl || "#"} target="_blank" rel="noopener noreferrer" onClick={(e) => { if (!isMember(viewTeam) && isStudent) { e.preventDefault(); setJoinTeam(viewTeam); } }}
+                    className={`flex-1 flex items-center justify-center gap-2.5 py-3 rounded-lg font-bold text-xs border transition-all ${viewTeam.whatsappUrl ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20" : "bg-slate-900/50 text-slate-700 border-slate-800 pointer-events-none"}`}>
                     <MessageCircle size={18} /> WhatsApp
                   </a>
-                  <a href={viewTeam.telegramUrl || "#"} target="_blank" rel="noopener noreferrer" onClick={(e) => { if(!isMember(viewTeam) && isStudent) { e.preventDefault(); setJoinTeam(viewTeam); } }}
-                     className={`flex-1 flex items-center justify-center gap-2.5 py-3 rounded-lg font-bold text-xs border transition-all ${viewTeam.telegramUrl ? "bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 border-sky-500/20" : "bg-slate-900/50 text-slate-700 border-slate-800 pointer-events-none"}`}>
+                  <a href={viewTeam.telegramUrl || "#"} target="_blank" rel="noopener noreferrer" onClick={(e) => { if (!isMember(viewTeam) && isStudent) { e.preventDefault(); setJoinTeam(viewTeam); } }}
+                    className={`flex-1 flex items-center justify-center gap-2.5 py-3 rounded-lg font-bold text-xs border transition-all ${viewTeam.telegramUrl ? "bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 border-sky-500/20" : "bg-slate-900/50 text-slate-700 border-slate-800 pointer-events-none"}`}>
                     <Send size={18} /> Telegram
                   </a>
                 </div>
@@ -450,12 +450,12 @@ export default function TutoriasPage() {
             <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center gap-2">
               <Lock size={14} className="text-violet-400" /> Senha da Tutoria (opcional)
             </label>
-            <input 
-              type="text" 
-              placeholder="Ex: 123456 (deixe vazio para não exigir senha)" 
-              className="input-field text-sm" 
-              value={form.accessCode} 
-              onChange={(e) => setForm((p) => ({ ...p, accessCode: e.target.value }))} 
+            <input
+              type="text"
+              placeholder="Ex: 123456 (deixe vazio para não exigir senha)"
+              className="input-field text-sm"
+              value={form.accessCode}
+              onChange={(e) => setForm((p) => ({ ...p, accessCode: e.target.value }))}
             />
             <p className="text-[10px] text-slate-500 mt-1">Alunas precisarão desta senha para entrar na equipe pelos links sociais.</p>
           </div>

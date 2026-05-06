@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
@@ -21,24 +21,40 @@ const PAGE_TITLES = {
 export default function Layout() {
   const { user, isImpersonating, stopImpersonating } = useAuth();
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [isNavVisible, setIsNavVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  const scrollRef = useRef(null);
   const { pathname } = useLocation();
   const title = PAGE_TITLES[pathname] ?? "Tutoria Meninas";
 
+  // Lógica de scroll para mobile (hide/show navs)
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const currentScrollY = scrollRef.current.scrollTop;
+    const isMobile = window.innerWidth < 768;
+
+    if (isMobile && currentScrollY > lastScrollY.current && currentScrollY > 50) {
+      setIsNavVisible(false);
+    } else {
+      setIsNavVisible(true);
+    }
+    lastScrollY.current = currentScrollY;
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row">
-      <div className="hidden md:block">
+    <div className="h-screen bg-slate-950 flex flex-col md:flex-row overflow-hidden">
+      <div className="hidden md:block h-full">
         <Sidebar isExpanded={isSidebarExpanded} />
       </div>
 
-      {/* Main content */}
+      {/* Main content area */}
       <div
-        className={`flex-1 flex flex-col relative transition-all duration-300 
+        className={`flex-1 flex flex-col h-full relative transition-all duration-300 
                    ${isSidebarExpanded ? "md:ml-64" : "md:ml-16"} ml-0`}
       >
+        {/* Banner de Impersonate */}
         {isImpersonating && (
-          <div className="fixed top-0 right-0 left-0 h-9 bg-amber-500 text-slate-950 px-4 flex items-center justify-between z-[70] shadow-xl font-bold text-xs transition-all duration-300"
-               style={{ left: window.innerWidth > 768 ? (isSidebarExpanded ? "256px" : "64px") : "0px" }}>
+          <div className="h-9 bg-amber-500 text-slate-950 px-4 flex items-center justify-between z-[70] shadow-xl font-bold text-xs shrink-0">
             <div className="flex items-center gap-2">
               <ShieldAlert size={16} />
               <span className="truncate">Imitando visão: <span className="underline">{user?.name}</span> ({user?.role})</span>
@@ -50,17 +66,20 @@ export default function Layout() {
           </div>
         )}
 
-        <div className={`transition-all duration-300 ${isImpersonating ? "mt-9" : ""}`}>
-          <Header
-            pageTitle={title}
-            isSidebarExpanded={isSidebarExpanded}
-            onToggleSidebar={() => setIsSidebarExpanded((prev) => !prev)}
-            isImpersonating={isImpersonating}
-          />
-        </div>
+        <Header
+          pageTitle={title}
+          isSidebarExpanded={isSidebarExpanded}
+          onToggleSidebar={() => setIsSidebarExpanded((prev) => !prev)}
+          isImpersonating={isImpersonating}
+          isVisible={isNavVisible}
+        />
 
-        {/* Page area centralizada para melhor uso do espaço */}
-        <main className={`flex-1 p-4 md:p-6 overflow-y-auto relative transition-all duration-300 ${isImpersonating ? "pt-24" : "pt-14"} pb-24 md:pb-6`}>
+        {/* Page content with its own scrollbar */}
+        <main 
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6 scroll-smooth"
+        >
           <div className="w-full max-w-7xl mx-auto">
             <Outlet />
           </div>
@@ -68,7 +87,7 @@ export default function Layout() {
       </div>
       
       {/* Mobile Bottom Nav */}
-      <BottomNav />
+      <BottomNav isVisible={isNavVisible} />
 
       {/* Assistente IA */}
       <ChatWidget />

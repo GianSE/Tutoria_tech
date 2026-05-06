@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { 
-  Download, BookOpen, Zap, Code2, Lightbulb, Plus, ExternalLink, Pencil, Trash2, 
+import {
+  Download, BookOpen, Zap, Code2, Lightbulb, Plus, ExternalLink, Pencil, Trash2,
   Loader2, AlertCircle, Upload, X, FileText, Video, Image, FileArchive, FileCode, File,
   Search, LayoutGrid, List, ChevronLeft, ChevronRight, Filter, ChevronDown
 } from "lucide-react";
@@ -11,13 +11,13 @@ import { apiFetch } from "../lib/api";
 function getFileIcon(fileName) {
   if (!fileName) return <File size={13} />;
   const ext = fileName.split(".").pop().toLowerCase();
-  
+
   if (["pdf", "doc", "docx", "txt", "rtf"].includes(ext)) return <FileText size={13} />;
   if (["mp4", "mov", "avi", "mkv"].includes(ext)) return <Video size={13} />;
   if (["png", "jpg", "jpeg", "gif", "svg", "webp"].includes(ext)) return <Image size={13} />;
   if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return <FileArchive size={13} />;
   if (["js", "jsx", "ts", "tsx", "py", "html", "css", "json", "c", "cpp"].includes(ext)) return <FileCode size={13} />;
-  
+
   return <File size={13} />;
 }
 
@@ -25,23 +25,23 @@ const CATEGORIAS = ["Todos", "Programação", "Design", "Empreendedorismo", "Des
 
 const TIPO_STYLE = {
   Tutorial: "bg-violet-500/15 text-violet-400 border-violet-500/30",
-  Guia:     "bg-sky-500/15    text-sky-400    border-sky-500/30",
-  Desafio:  "bg-pink-500/15   text-pink-400   border-pink-500/30",
+  Guia: "bg-sky-500/15    text-sky-400    border-sky-500/30",
+  Desafio: "bg-pink-500/15   text-pink-400   border-pink-500/30",
   Template: "bg-amber-500/15  text-amber-400  border-amber-500/30",
 };
 
 const ICON_MAP = {
-  Programação:       Code2,
-  Design:            Lightbulb,
-  Desafios:          Zap,
-  Empreendedorismo:  BookOpen,
+  Programação: Code2,
+  Design: Lightbulb,
+  Desafios: Zap,
+  Empreendedorismo: BookOpen,
 };
 
 const GRADIENT_MAP = {
-  Programação:       "bg-violet-600 shadow-violet-500/20",
-  Design:            "bg-amber-500 shadow-amber-500/20",
-  Desafios:          "bg-pink-600 shadow-pink-500/20",
-  Empreendedorismo:  "bg-sky-600 shadow-sky-500/20",
+  Programação: "bg-violet-600 shadow-violet-500/20",
+  Design: "bg-amber-500 shadow-amber-500/20",
+  Desafios: "bg-pink-600 shadow-pink-500/20",
+  Empreendedorismo: "bg-sky-600 shadow-sky-500/20",
 };
 
 const TIPOS = ["Todos", "Tutorial", "Guia", "Desafio", "Template"];
@@ -53,25 +53,25 @@ export default function MateriaisPage() {
   const { user } = useAuth();
   const canManage = ["ADMIN", "MENTORA"].includes(user?.role);
 
-  const [materials, setMaterials]   = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [categoria, setCategoria]   = useState("Todos");
-  const [modalOpen, setModalOpen]   = useState(false);
-  const [editingId, setEditingId]   = useState(null);
+  const [materials, setMaterials] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [categoria, setCategoria] = useState("Todos");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [viewMaterial, setViewMaterial] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
-  const [form, setForm]             = useState(EMPTY_FORM);
-  const [selectedFiles, setSelectedFiles] = useState([]); 
-  const [saving, setSaving]         = useState(false);
-  const [deleting, setDeleting]     = useState(false);
-  const [formError, setFormError]   = useState("");
-  
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [formError, setFormError] = useState("");
+
   // Novos estados para filtros e UI
-  const [search, setSearch]         = useState("");
+  const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("Todos");
   const [statusFilter, setStatusFilter] = useState("Todos");
-  const [viewMode, setViewMode]     = useState("grid"); // grid | list
-  const [sortBy, setSortBy]         = useState("recent");
+  const [viewMode, setViewMode] = useState("grid"); // grid | list
+  const [sortBy, setSortBy] = useState("recent");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
@@ -166,7 +166,7 @@ export default function MateriaisPage() {
       }
 
       await fetchMaterials();
-      setSelectedFiles([]); 
+      setSelectedFiles([]);
       setModalOpen(false);
     } catch (err) {
       setFormError(err.message);
@@ -196,8 +196,8 @@ export default function MateriaisPage() {
   // Lógica de Filtragem e Ordenação
   const filtered = materials.filter((m) => {
     const matchesSearch = !search || m.title.toLowerCase().includes(search.toLowerCase()) || m.description?.toLowerCase().includes(search.toLowerCase());
-    const matchesCat    = categoria === "Todos" || m.category === categoria;
-    const matchesType   = typeFilter === "Todos" || m.type === typeFilter;
+    const matchesCat = categoria === "Todos" || m.category === categoria;
+    const matchesType = typeFilter === "Todos" || m.type === typeFilter;
     // Status Filter (mocked or as proxy)
     if (statusFilter === "Publicados") return matchesSearch && matchesCat && matchesType;
     if (statusFilter === "Em revisão" || statusFilter === "Rascunhos") return false; // Mock zero for these
@@ -207,7 +207,7 @@ export default function MateriaisPage() {
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === "recent") return new Date(b.createdAt) - new Date(a.createdAt);
     if (sortBy === "oldest") return new Date(a.createdAt) - new Date(b.createdAt);
-    if (sortBy === "az")     return a.title.localeCompare(b.title);
+    if (sortBy === "az") return a.title.localeCompare(b.title);
     return 0;
   });
 
@@ -222,23 +222,23 @@ export default function MateriaisPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+    <div className="space-y-4 max-w-7xl mx-auto pb-4">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">Materiais de Apoio</h2>
-          <p className="text-slate-400 text-sm mt-1">Conteúdos, guias e desafios para o programa.</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight">Materiais de Apoio</h2>
+          <p className="text-slate-400 text-sm mt-0.5">Conteúdos, guias e desafios para o programa.</p>
         </div>
         <div className="flex items-center gap-3 self-start md:self-auto">
           {/* View Toggle - Only on Desktop */}
           <div className="hidden md:flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700 mr-1">
-            <button 
+            <button
               onClick={() => setViewMode("grid")}
               className={`p-1.5 rounded-lg transition-all ${viewMode === "grid" ? "bg-violet-600 text-white shadow-lg shadow-violet-500/20" : "text-slate-500 hover:text-slate-300"}`}
             >
               <LayoutGrid size={16} />
             </button>
-            <button 
+            <button
               onClick={() => setViewMode("list")}
               className={`p-1.5 rounded-lg transition-all ${viewMode === "list" ? "bg-violet-600 text-white shadow-lg shadow-violet-500/20" : "text-slate-500 hover:text-slate-300"}`}
             >
@@ -246,11 +246,11 @@ export default function MateriaisPage() {
             </button>
           </div>
 
-          <button 
+          <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border
-              ${showFilters 
-                ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/20" 
+              ${showFilters
+                ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/20"
                 : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white"}`}
           >
             <Filter size={16} /> {showFilters ? "Ocultar Filtros" : "Filtrar"}
@@ -269,20 +269,20 @@ export default function MateriaisPage() {
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             <div className="md:col-span-5 relative group">
               <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-violet-400 transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Buscar por título, assunto ou palavra-chave..." 
+              <input
+                type="text"
+                placeholder="Buscar por título, assunto ou palavra-chave..."
                 className="input-field pl-11 !py-3"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
               />
             </div>
-            
+
             <div className="md:col-span-3 relative">
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
                 <BookOpen size={16} />
               </div>
-              <select 
+              <select
                 className="input-field pl-10 appearance-none !py-3"
                 value={categoria}
                 onChange={(e) => { setCategoria(e.target.value); setCurrentPage(1); }}
@@ -296,7 +296,7 @@ export default function MateriaisPage() {
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
                 <LayoutGrid size={16} />
               </div>
-              <select 
+              <select
                 className="input-field pl-10 appearance-none !py-3"
                 value={typeFilter}
                 onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}
@@ -307,7 +307,7 @@ export default function MateriaisPage() {
             </div>
 
             <div className="md:col-span-1">
-              <button 
+              <button
                 onClick={() => { setSearch(""); setCategoria("Todos"); setTypeFilter("Todos"); setStatusFilter("Todos"); }}
                 className="w-full h-full flex items-center justify-center text-slate-400 hover:text-white bg-slate-800 rounded-xl hover:bg-slate-700 transition-all border border-slate-700"
                 title="Limpar filtros"
@@ -325,12 +325,12 @@ export default function MateriaisPage() {
                 { id: "Em revisão", label: "Em revisão", count: counts.revisao },
                 { id: "Rascunhos", label: "Rascunhos", count: counts.rascunhos },
               ].map((tab) => (
-                <button 
+                <button
                   key={tab.id}
                   onClick={() => setStatusFilter(tab.id)}
                   className={`px-4 py-2 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2
-                    ${statusFilter === tab.id 
-                      ? "bg-slate-800 text-white shadow-sm" 
+                    ${statusFilter === tab.id
+                      ? "bg-slate-800 text-white shadow-sm"
                       : "text-slate-500 hover:text-slate-300"}`}
                 >
                   {tab.label}
@@ -344,7 +344,7 @@ export default function MateriaisPage() {
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mr-1">Ordenar por</span>
               <div className="relative">
-                <select 
+                <select
                   className="bg-slate-900/50 border border-slate-800 text-slate-300 text-[11px] font-bold py-2 pl-4 pr-10 rounded-xl appearance-none hover:border-slate-700 transition-all outline-none"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
@@ -382,87 +382,87 @@ export default function MateriaisPage() {
         ) : (
           <div className={`flex-1 ${viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "flex flex-col gap-3"}`}>
             {currentItems.map((m) => {
-            const Icon     = ICON_MAP[m.category]   ?? BookOpen;
-            const gradient = GRADIENT_MAP[m.category] ?? "bg-slate-700 shadow-slate-500/20";
-            const allFiles = m.files ?? [];
-            
-            return (
-              <div key={m.id}
-                onClick={() => setViewMaterial(m)}
-                className={`card hover:border-violet-500/40 transition-all duration-300 flex cursor-pointer group relative overflow-hidden p-0
+              const Icon = ICON_MAP[m.category] ?? BookOpen;
+              const gradient = GRADIENT_MAP[m.category] ?? "bg-slate-700 shadow-slate-500/20";
+              const allFiles = m.files ?? [];
+
+              return (
+                <div key={m.id}
+                  onClick={() => setViewMaterial(m)}
+                  className={`card hover:border-violet-500/40 transition-all duration-300 flex cursor-pointer group relative overflow-hidden p-0
                            ${viewMode === "grid" ? "flex-col" : "flex-row items-center min-h-[72px]"}`}>
-                
-                <div className="absolute inset-0 bg-gradient-to-tr from-violet-500/0 via-violet-500/0 to-violet-500/[0.03] pointer-events-none" />
 
-                {/* Mobile & Grid Header/Side */}
-                <div className={`${viewMode === "grid" ? "p-4 pb-0" : "w-14 shrink-0 flex items-center justify-center border-r border-slate-800 bg-slate-900/50"}`}>
-                  <div className={`${viewMode === "grid" ? "w-10 h-10 rounded-xl" : "w-9 h-9 rounded-lg"} ${gradient} flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:scale-110`}>
-                    <Icon size={viewMode === "grid" ? 18 : 16} className="text-white" />
-                  </div>
-                </div>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-violet-500/0 via-violet-500/0 to-violet-500/[0.03] pointer-events-none" />
 
-                <div className={`flex-1 p-4 ${viewMode === "list" ? "py-3 flex flex-row items-center justify-between" : "flex flex-col h-full"}`}>
-                  <div className="min-w-0 flex-1">
-                    <div className={`flex items-start justify-between gap-2 ${viewMode === "grid" ? "mb-1" : ""}`}>
-                      <h3 className="text-white font-bold text-sm md:text-sm group-hover:text-violet-300 transition-colors leading-tight truncate">{m.title}</h3>
-                      {viewMode === "grid" && (
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border shadow-sm tracking-tight shrink-0
-                                          ${TIPO_STYLE[m.type] ?? TIPO_STYLE.Guia}`}>
-                          {m.type?.toUpperCase()}
-                        </span>
-                      )}
+                  {/* Mobile & Grid Header/Side */}
+                  <div className={`${viewMode === "grid" ? "p-4 pb-0" : "w-14 shrink-0 flex items-center justify-center border-r border-slate-800 bg-slate-900/50"}`}>
+                    <div className={`${viewMode === "grid" ? "w-10 h-10 rounded-xl" : "w-9 h-9 rounded-lg"} ${gradient} flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:scale-110`}>
+                      <Icon size={viewMode === "grid" ? 18 : 16} className="text-white" />
                     </div>
-                    
-                    {viewMode === "grid" ? (
-                      <p className="text-slate-400 text-xs leading-relaxed line-clamp-2 min-h-[32px] mt-1">
-                        {m.description ?? "Sem descrição detalhada disponível."}
-                      </p>
-                    ) : (
-                      <div className="flex items-center gap-3 mt-0.5">
-                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded border tracking-tight
+                  </div>
+
+                  <div className={`flex-1 p-4 ${viewMode === "list" ? "py-3 flex flex-row items-center justify-between" : "flex flex-col h-full"}`}>
+                    <div className="min-w-0 flex-1">
+                      <div className={`flex items-start justify-between gap-2 ${viewMode === "grid" ? "mb-1" : ""}`}>
+                        <h3 className="text-white font-bold text-sm md:text-sm group-hover:text-violet-300 transition-colors leading-tight truncate">{m.title}</h3>
+                        {viewMode === "grid" && (
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border shadow-sm tracking-tight shrink-0
                                           ${TIPO_STYLE[m.type] ?? TIPO_STYLE.Guia}`}>
-                          {m.type?.toUpperCase()}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-medium">{m.category}</span>
+                            {m.type?.toUpperCase()}
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  {/* Actions & Meta */}
-                  <div className={`${viewMode === "grid" ? "pt-3 mt-auto border-t border-slate-800 flex items-center justify-between" : "flex items-center gap-4 ml-4"}`}>
-                    <div className={`flex items-center gap-3 ${viewMode === "list" ? "hidden md:flex" : ""}`}>
-                      <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-                        <File size={11} className="text-slate-600" />
-                        {allFiles.length}
-                      </span>
-                      <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-                        <FileText size={11} className="text-slate-600" />
-                        {new Date(m.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      {canManage && (
-                        <div className={`flex gap-1 ${viewMode === "grid" ? "mr-2" : ""}`}>
-                          <button onClick={() => openEdit(m)}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-700 hover:text-white transition-all">
-                            <Pencil size={12} />
-                          </button>
-                          <button onClick={() => setConfirmDel({ id: m.id, name: m.title })}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all">
-                            <Trash2 size={12} />
-                          </button>
+                      {viewMode === "grid" ? (
+                        <p className="text-slate-400 text-xs leading-relaxed line-clamp-2 min-h-[32px] mt-1">
+                          {m.description ?? "Sem descrição detalhada disponível."}
+                        </p>
+                      ) : (
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded border tracking-tight
+                                          ${TIPO_STYLE[m.type] ?? TIPO_STYLE.Guia}`}>
+                            {m.type?.toUpperCase()}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium">{m.category}</span>
                         </div>
                       )}
-                      <div className="text-violet-400 p-1.5 rounded-lg bg-violet-500/10 md:bg-transparent">
-                        <ExternalLink size={14} />
+                    </div>
+
+                    {/* Actions & Meta */}
+                    <div className={`${viewMode === "grid" ? "pt-3 mt-auto border-t border-slate-800 flex items-center justify-between" : "flex items-center gap-4 ml-4"}`}>
+                      <div className={`flex items-center gap-3 ${viewMode === "list" ? "hidden md:flex" : ""}`}>
+                        <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                          <File size={11} className="text-slate-600" />
+                          {allFiles.length}
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                          <FileText size={11} className="text-slate-600" />
+                          {new Date(m.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        {canManage && (
+                          <div className={`flex gap-1 ${viewMode === "grid" ? "mr-2" : ""}`}>
+                            <button onClick={() => openEdit(m)}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-700 hover:text-white transition-all">
+                              <Pencil size={12} />
+                            </button>
+                            <button onClick={() => setConfirmDel({ id: m.id, name: m.title })}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
+                        <div className="text-violet-400 p-1.5 rounded-lg bg-violet-500/10 md:bg-transparent">
+                          <ExternalLink size={14} />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
         )}
       </div>
@@ -470,28 +470,28 @@ export default function MateriaisPage() {
       {/* Pagination */}
       {!loading && totalPages > 1 && (
         <div className="flex items-center justify-center gap-1.5 pt-6">
-          <button 
+          <button
             disabled={currentPage === 1}
             onClick={() => setCurrentPage(p => p - 1)}
             className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-800 text-slate-400 hover:bg-slate-800 disabled:opacity-30 transition-all"
           >
             <ChevronLeft size={16} />
           </button>
-          
+
           {[...Array(totalPages)].map((_, i) => (
-            <button 
+            <button
               key={i}
               onClick={() => setCurrentPage(i + 1)}
               className={`w-8 h-8 rounded-lg text-xs font-bold transition-all border
-                ${currentPage === i + 1 
-                  ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/20" 
+                ${currentPage === i + 1
+                  ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/20"
                   : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"}`}
             >
               {i + 1}
             </button>
           ))}
 
-          <button 
+          <button
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage(p => p + 1)}
             className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-800 text-slate-400 hover:bg-slate-800 disabled:opacity-30 transition-all"
@@ -503,7 +503,7 @@ export default function MateriaisPage() {
 
       {/* ─── Modal: Criar / Editar Material ───────────────────────────────────── */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)}
-             title={editingId ? "Editar Material" : "Novo Material"}>
+        title={editingId ? "Editar Material" : "Novo Material"}>
         <form onSubmit={handleSave} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">Título</label>
@@ -581,7 +581,7 @@ export default function MateriaisPage() {
 
       {/* ─── Modal: Ver Conteúdo ────────────────────────────────────────────────── */}
       <Modal isOpen={!!viewMaterial} onClose={() => setViewMaterial(null)}
-             title={viewMaterial?.title ?? "Material"} size="md">
+        title={viewMaterial?.title ?? "Material"} size="md">
         {viewMaterial && (
           <div className="space-y-4">
             {viewMaterial.description && (

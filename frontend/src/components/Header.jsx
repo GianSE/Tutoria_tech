@@ -5,13 +5,11 @@ import { useAuth } from "../context/AuthContext";
 import NotificationBell from "./NotificationBell";
 import Modal from "./Modal";
 
-export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, isImpersonating }) {
+export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, isImpersonating, isVisible }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isVisible, setIsVisible] = useState(true);
-  const lastScrollY = useRef(0);
   const menuRef = useRef(null);
 
   const handleLogout = () => {
@@ -29,30 +27,12 @@ export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, 
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpen]);
 
-  // Esconder ao rolar
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
-        setIsVisible(false);
-      } else {
-        setIsVisible(true);
-      }
-      lastScrollY.current = currentScrollY;
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   return (
     <>
       <header
-        className={`h-12 bg-slate-900/80 backdrop-blur border-b border-slate-800
-                         fixed right-0 z-10 flex items-center justify-between pr-4 md:pr-6 transition-all duration-300 
-                         ${isSidebarExpanded ? "md:left-64" : "md:left-16"} left-0
-                         ${!isVisible ? "-translate-y-full" : "translate-y-0"}`}
-        style={{ top: isImpersonating ? "36px" : "0px" }}
+        className={`h-14 bg-slate-900 border-b border-slate-800
+                         relative z-50 flex items-center justify-between pr-4 md:pr-6 transition-all duration-300 
+                         ${!isVisible ? "hidden md:flex" : "flex"}`}
       >
         <div className="flex items-center gap-3 pl-4">
           {/* Logo Mobile */}
