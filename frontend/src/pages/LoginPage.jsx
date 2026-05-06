@@ -31,7 +31,7 @@ export default function LoginPage() {
 
       // Passa tanto o user quanto o token JWT ao contexto
       login(data.user, data.token);
-      navigate("/app/dashboard");
+      navigate("/dashboard");
     } catch (err) {
       setError(err.message);
     } finally {

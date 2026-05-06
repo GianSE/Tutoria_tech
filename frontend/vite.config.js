@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     host: "0.0.0.0", // necessário para funcionar dentro do Docker
     port: 5173,
+    allowedHosts: true, // permite acesso via ngrok (hosts dinâmicos)
     watch: {
       usePolling: true, // necessário para hot-reload funcionar no Docker/WSL
     },

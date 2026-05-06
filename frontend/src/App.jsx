@@ -18,32 +18,32 @@ export default function App() {
     <AuthProvider>
       <ChatProvider>
         <Routes>
-          <Route path="/" element={<Navigate to="/app/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<LoginPage />} />
 
           {/* ── Rotas privadas para TODOS os papéis ──────────────────────── */}
           <Route element={<PrivateRoute />}>
             <Route element={<Layout />}>
-              <Route path="/app/dashboard" element={<DashboardPage />} />
-              <Route path="/app/rose-chat" element={<RoseChatPage />} />
-              <Route path="/app/materiais" element={<MateriaisPage />} />
-              <Route path="/app/agenda"    element={<AgendaPage />} />
-              <Route path="/app/perfil"    element={<PerfilPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/rose-chat" element={<RoseChatPage />} />
+              <Route path="/materiais" element={<MateriaisPage />} />
+              <Route path="/agenda"    element={<AgendaPage />} />
+              <Route path="/perfil"    element={<PerfilPage />} />
 
               {/* ── Apenas ADMIN e MENTORA ─────────────────────────────── */}
               <Route element={<PrivateRoute allowedRoles={["ADMIN", "MENTORA"]} />}>
-                <Route path="/app/tutorias" element={<TutoriasPage />} />
+                <Route path="/tutorias" element={<TutoriasPage />} />
               </Route>
 
               {/* ── Apenas ADMIN ───────────────────────────────────────── */}
               <Route element={<PrivateRoute allowedRoles={["ADMIN"]} />}>
-                <Route path="/app/usuarios" element={<UsuariosPage />} />
-                <Route path="/app/configuracoes-ia" element={<ConfiguracoesIAPage />} />
+                <Route path="/usuarios" element={<UsuariosPage />} />
+                <Route path="/configuracoes-ia" element={<ConfiguracoesIAPage />} />
               </Route>
             </Route>
           </Route>
 
-          <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </ChatProvider>
     </AuthProvider>

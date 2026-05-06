@@ -1,0 +1,62 @@
+# ═══════════════════════════════════════════════════════════════════
+#  INFRAESTRUTURA — Banco de Dados + Armazenamento de Arquivos
+#  Subir com:  docker compose -f docker-compose.infra.yml up -d
+# ═══════════════════════════════════════════════════════════════════
+
+services:
+  # ─────────────────────────────────────────────
+  #  BANCO DE DADOS — PostgreSQL + pgvector
+  # ─────────────────────────────────────────────
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: tutoria_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tutoriatech_user
+      POSTGRES_PASSWORD: tutoriatech_pass
+      POSTGRES_DB: tutoriatech
+    ports:
+      - "5432:5432"   # Exposta ao host para acesso direto (DBeaver, pgAdmin, etc.)
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - tutoria-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tutoriatech_user -d tutoriatech"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  #  ARMAZENAMENTO DE ARQUIVOS — MinIO
+  # ─────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: tutoria_minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    expose:
+      - "9000"
+      - "9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - tutoria-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg_data:
+  minio_data:
+
+networks:
+  tutoria-network:
+    name: tutoria-network
+    driver: bridge

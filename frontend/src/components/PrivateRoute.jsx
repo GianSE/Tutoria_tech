@@ -11,7 +11,7 @@ export default function PrivateRoute({ allowedRoles = [] }) {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
-    return <Navigate to="/app/dashboard" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <Outlet />;

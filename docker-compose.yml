@@ -1,54 +1,15 @@
+# ═══════════════════════════════════════════════════════════════════
+#  APLICAÇÃO — Backend + Frontend + Ngrok
+#  Subir com:  docker compose up -d --build
+#
+#  ⚠ Pré-requisitos:
+#    1. docker compose -f docker-compose.infra.yml up -d
+#    2. docker compose -f docker-compose.ia.yml up -d --build
+# ═══════════════════════════════════════════════════════════════════
+
 services:
   # ─────────────────────────────────────────────
-  #  1. BANCO DE DADOS — PostgreSQL + pgvector
-  # ─────────────────────────────────────────────
-  db:
-    image: pgvector/pgvector:pg16
-    container_name: tutoria_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: tutoriatech_user
-      POSTGRES_PASSWORD: tutoriatech_pass
-      POSTGRES_DB: tutoriatech
-    ports:
-      - "5432:5432"
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    networks:
-      - tutoria-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tutoriatech_user -d tutoriatech"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-
-  # ─────────────────────────────────────────────
-  #  2. ARMAZENAMENTO DE ARQUIVOS — MinIO
-  # ─────────────────────────────────────────────
-  minio:
-    image: minio/minio:latest
-    container_name: tutoria_minio
-    restart: unless-stopped
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000" # API do MinIO
-      - "9001:9001" # Console do MinIO
-    volumes:
-      - minio_data:/data
-    networks:
-      - tutoria-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ─────────────────────────────────────────────
-  #  3. BACKEND — Node.js + Fastify + Prisma
+  #  BACKEND — Node.js + Fastify + Prisma
   # ─────────────────────────────────────────────
   backend:
     build:
@@ -59,7 +20,6 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      # Novas variáveis para integração
       - PYTHON_API_URL=http://python-ia:8000
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
@@ -67,16 +27,11 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_USE_SSL=false
       - MINIO_BUCKET_NAME=materiais
-      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
+      - MINIO_PUBLIC_URL=http://minio:9000
     command: sh -c "npx prisma generate && npx prisma db push && npx prisma db seed && npx prisma studio --hostname 0.0.0.0 & npm run dev"
-    ports:
-      - "3001:3001" # Porta para a API do backend
-      - "5555:5555" # Porta para o Prisma Studio
-    depends_on:
-      db:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+    expose:
+      - "3001"
+      - "5555"
     networks:
       - tutoria-network
     volumes:
@@ -84,35 +39,7 @@ services:
       - /app/node_modules
 
   # ─────────────────────────────────────────────
-  #  4. SERVIÇO DE IA — Python + FastAPI
-  # ─────────────────────────────────────────────
-  python-ia:
-    build:
-      context: ./python-ia
-      dockerfile: Dockerfile
-    container_name: tutoria_python_ia
-    restart: unless-stopped
-    environment:
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_SECURE=false
-      - MINIO_BUCKET_NAME=materiais
-      - DB_URL=postgresql://tutoriatech_user:tutoriatech_pass@db:5432/tutoriatech
-    ports:
-      - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    networks:
-      - tutoria-network
-    volumes:
-      - ./python-ia:/app
-
-  # ─────────────────────────────────────────────
-  #  5. FRONTEND — React + Vite
+  #  FRONTEND — React + Vite
   # ─────────────────────────────────────────────
   frontend:
     build:
@@ -120,8 +47,8 @@ services:
       dockerfile: Dockerfile
     container_name: tutoria_frontend
     restart: unless-stopped
-    ports:
-      - "3000:5173" # Requisição do usuário para porta 3000
+    expose:
+      - "5173"
     depends_on:
       - backend
     networks:
@@ -131,36 +58,22 @@ services:
       - /app/node_modules
 
   # ─────────────────────────────────────────────
-  #  6. REVERSE PROXY — Caddy (HTTPS)
+  #  NGROK — Túnel público para o Frontend
   # ─────────────────────────────────────────────
-  caddy:
-    image: caddy:2
-    container_name: tutoria_caddy
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: tutoria_ngrok
     restart: unless-stopped
-    profiles: ["prod"]
-    ports:
-      - "80:80"
-      - "443:443"
     environment:
-      - CADDY_DOMAIN=${CADDY_DOMAIN}
-      - CADDY_EMAIL=${CADDY_EMAIL}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    command: http frontend:5173
+    ports:
+      - "4040:4040"   # Dashboard de inspeção do ngrok (http://localhost:4040)
     depends_on:
       - frontend
-      - backend
-      - minio
     networks:
       - tutoria-network
 
-volumes:
-  pg_data:
-  minio_data:
-  caddy_data:
-  caddy_config:
-
 networks:
   tutoria-network:
-    driver: bridge
+    external: true

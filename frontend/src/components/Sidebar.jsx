@@ -7,43 +7,43 @@ import { useAuth } from "../context/AuthContext";
 
 const ALL_NAV_ITEMS = [
   {
-    to: "/app/dashboard", label: "Dashboard",
+    to: "/dashboard", label: "Dashboard",
     icon: LayoutDashboard,
     roles: ["ADMIN", "MENTORA", "ALUNA"],
   },
   {
-    to: "/app/rose-chat", label: "Conversa com Rose",
+    to: "/rose-chat", label: "Conversa com Rose",
     icon: MessageCircle,
     roles: ["ADMIN", "MENTORA", "ALUNA"],
   },
   {
-    to: "/app/tutorias",  label: "Tutorias",
+    to: "/tutorias",  label: "Tutorias",
     icon: BookOpen,
     roles: ["ADMIN", "MENTORA"],            // ← ALUNA não vê
   },
   {
-    to: "/app/materiais", label: "Materiais",
+    to: "/materiais", label: "Materiais",
     icon: FolderOpen,
     roles: ["ADMIN", "MENTORA", "ALUNA"],
   },
   {
-    to: "/app/agenda",    label: "Agenda",
+    to: "/agenda",    label: "Agenda",
     icon: CalendarDays,
     roles: ["ADMIN", "MENTORA", "ALUNA"],
   },
   {
-    to: "/app/perfil",    label: "Meu Perfil",
+    to: "/perfil",    label: "Meu Perfil",
     icon: UserCircle2,
     roles: ["ADMIN", "MENTORA", "ALUNA"],
   },
   {
-    to: "/app/usuarios",  label: "Usuários",
+    to: "/usuarios",  label: "Usuários",
     icon: Users,
     roles: ["ADMIN"],                       // ← apenas ADMIN
   },
 
   {
-    to: "/app/configuracoes-ia", label: "Configuracao da IA",
+    to: "/configuracoes-ia", label: "Configuracao da IA",
     icon: Bot,
     roles: ["ADMIN"],
   },
