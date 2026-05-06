@@ -65,6 +65,7 @@ export function ChatProvider({ children }) {
   const [conversations, setConversations] = useState(initialState.conversations);
   const [activeId, setActiveId] = useState(initialState.activeId);
   const [pendingIds, setPendingIds] = useState([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(
@@ -172,6 +173,8 @@ export function ChatProvider({ children }) {
         setPending,
         clearConversation,
         buildHistory,
+        isChatOpen,
+        setIsChatOpen,
       }}
     >
       {children}

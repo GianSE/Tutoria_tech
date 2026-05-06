@@ -64,4 +64,36 @@ export async function authRoutes(app) {
     if (!user) return reply.status(404).send({ message: "Usuário não encontrado." });
     return reply.send(user);
   });
+
+  // POST /api/auth/impersonate/:id — ADMIN imita visão de outro usuário
+  app.post("/impersonate/:id", {
+    onRequest: [app.authenticate],
+  }, async (req, reply) => {
+    if (req.user.role !== "ADMIN") {
+      return reply.status(403).send({ message: "Apenas administradores podem imitar visões." });
+    }
+
+    const targetId = Number(req.params.id);
+    const targetUser = await prisma.user.findUnique({ where: { id: targetId } });
+
+    if (!targetUser) {
+      return reply.status(404).send({ message: "Usuário alvo não encontrado." });
+    }
+
+    // Gera token para o usuário alvo
+    const token = app.jwt.sign(
+      { id: targetUser.id, email: targetUser.email, role: targetUser.role, isImpersonating: true },
+      { expiresIn: "2h" }
+    );
+
+    return reply.send({
+      token,
+      user: {
+        id:    targetUser.id,
+        name:  targetUser.name,
+        email: targetUser.email,
+        role:  targetUser.role,
+      },
+    });
+  });
 }

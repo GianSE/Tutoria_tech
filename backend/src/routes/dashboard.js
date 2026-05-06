@@ -9,6 +9,7 @@ export async function dashboardRoutes(app) {
   app.get("/stats", async (_req, reply) => {
     const [
       totalAlunas,
+      totalMentoras,
       equipesAtivas,
       sessoesRealizadas,
       materiaisPublicados,
@@ -16,6 +17,7 @@ export async function dashboardRoutes(app) {
       teamsGrouped,
     ] = await Promise.all([
       prisma.user.count({ where: { role: "ALUNA" } }),
+      prisma.user.count({ where: { role: "MENTORA" } }),
       prisma.team.count(),
       prisma.schedule.count({ where: { status: "REALIZADA" } }),
       prisma.material.count(),
@@ -38,6 +40,7 @@ export async function dashboardRoutes(app) {
 
     return reply.send({
       totalAlunas,
+      totalMentoras,
       equipesAtivas,
       sessoesRealizadas,
       materiaisPublicados,

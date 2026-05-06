@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Users, BookOpen,
-  FolderOpen, CalendarDays, Sparkles, UserCircle2, Bot, BarChart3, MessageCircle,
+  FolderOpen, CalendarDays, Sparkles, UserCircle2, Bot, BarChart3, MessageCircle, Settings2,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -11,15 +11,11 @@ const ALL_NAV_ITEMS = [
     icon: LayoutDashboard,
     roles: ["ADMIN", "MENTORA", "ALUNA"],
   },
-  {
-    to: "/rose-chat", label: "Conversa com Rose",
-    icon: MessageCircle,
-    roles: ["ADMIN", "MENTORA", "ALUNA"],
-  },
+
   {
     to: "/tutorias",  label: "Tutorias",
     icon: BookOpen,
-    roles: ["ADMIN", "MENTORA"],            // ← ALUNA não vê
+    roles: ["ADMIN", "MENTORA", "ALUNA"],
   },
   {
     to: "/materiais", label: "Materiais",
@@ -30,22 +26,6 @@ const ALL_NAV_ITEMS = [
     to: "/agenda",    label: "Agenda",
     icon: CalendarDays,
     roles: ["ADMIN", "MENTORA", "ALUNA"],
-  },
-  {
-    to: "/perfil",    label: "Meu Perfil",
-    icon: UserCircle2,
-    roles: ["ADMIN", "MENTORA", "ALUNA"],
-  },
-  {
-    to: "/usuarios",  label: "Usuários",
-    icon: Users,
-    roles: ["ADMIN"],                       // ← apenas ADMIN
-  },
-
-  {
-    to: "/configuracoes-ia", label: "Configuracao da IA",
-    icon: Bot,
-    roles: ["ADMIN"],
   },
 ];
 
@@ -111,9 +91,7 @@ export default function Sidebar({ isExpanded }) {
         ))}
       </nav>
 
-      <div className={`px-4 py-4 border-t border-slate-800 transition-opacity duration-200 ${isExpanded ? "opacity-100" : "opacity-0"}`}>
-        <p className="text-[10px] text-slate-600 text-center">Technovation Girls 2024 – 2025</p>
-      </div>
+
     </aside>
   );
 }

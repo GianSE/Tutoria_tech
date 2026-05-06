@@ -47,6 +47,18 @@ enum ProgressStage {
 
 // ─── Models ───────────────────────────────────────────────────────────────────
 
+model SystemOption {
+  id        Int      @id @default(autoincrement())
+  group     String   @db.VarChar(50) // TEAM_STATUS, SCHEDULE_TYPE, MATERIAL_CATEGORY, MATERIAL_TYPE
+  value     String   @db.VarChar(50)
+  label     String   @db.VarChar(100)
+  color     String?  @db.VarChar(50)
+  createdAt DateTime @default(now())
+
+  @@unique([group, value])
+  @@map("system_options")
+}
+
 model User {
   id        Int       @id @default(autoincrement())
   name      String    @db.VarChar(120)
@@ -68,9 +80,11 @@ model User {
 model Team {
   id           Int        @id @default(autoincrement())
   name         String     @db.VarChar(120)
+  description  String?    @db.Text
   thunkableUrl String?    @db.VarChar(500)
   telegramUrl  String?    @db.VarChar(500)
   whatsappUrl  String?    @db.VarChar(500)
+  accessCode   String?    @db.VarChar(50)
   status       TeamStatus @default(IDEACAO)
   mentorId     Int
   createdAt    DateTime   @default(now())
@@ -114,10 +128,11 @@ model Schedule {
   id        Int            @id @default(autoincrement())
   title     String         @db.VarChar(200)
   date      DateTime
-  local     String?        @db.VarChar(200)
-  type      ScheduleType   @default(SESSAO_DE_TUTORIA)
-  status    ScheduleStatus @default(PENDENTE)
-  presencas Int            @default(0)
+  description String?        @db.Text
+  local       String?        @db.VarChar(200)
+  type        ScheduleType   @default(SESSAO_DE_TUTORIA)
+  status      ScheduleStatus @default(PENDENTE)
+  presencas   Int            @default(0)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 

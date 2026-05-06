@@ -1,338 +1,65 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import path from "path";
 import prisma from "../lib/prisma.js";
 import { requireRole } from "../lib/requireRole.js";
-import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadBucketCommand, CreateBucketCommand } from "@aws-sdk/client-s3";
 
-const M_ENDPOINT = process.env.MINIO_ENDPOINT || "minio";
-const M_PORT = process.env.MINIO_PORT || "9000";
-const M_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || "minioadmin";
-const M_SECRET_KEY = process.env.MINIO_SECRET_KEY || "minioadmin";
-const M_SECURE = process.env.MINIO_USE_SSL === "true";
-const BUCKET_NAME = process.env.MINIO_BUCKET_NAME || "materiais";
-const MINIO_PUBLIC_URL = process.env.MINIO_PUBLIC_URL || `${M_SECURE ? "https" : "http"}://${M_ENDPOINT}:${M_PORT}`;
-
-const s3Client = new S3Client({
-  endpoint: `${M_SECURE ? "https" : "http"}://${M_ENDPOINT}:${M_PORT}`,
-  region: "us-east-1",
-  credentials: {
-    accessKeyId: M_ACCESS_KEY,
-    secretAccessKey: M_SECRET_KEY,
-  },
-  forcePathStyle: true,
-});
-
-function maskApiKey(apiKey) {
-  if (!apiKey) return "";
-  return `${apiKey.slice(0, 6)}***`;
-}
-
-function isAllowedKnowledgeExtension(filename = "") {
-  const ext = path.extname(filename).toLowerCase();
-  const allowedExts = [".md", ".pdf", ".docx", ".txt", ".xlsx", ".csv", ".pptx"];
-  return allowedExts.includes(ext);
-}
-
-function preprocessKnowledgeContent(text = "") {
-  return text
-    .replace(/[\u0000\u0001-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/\n{4,}/g, "\n\n")
-    .trim();
-}
-
-function splitIntoChunks(text = "") {
-  return text
-    .split(/\n\n+/g)
-    .map((p) => p.trim())
-    .filter((p) => p.length >= 50);
-}
-
+/**
+ * Rotas de Configurações do Sistema (System Options)
+ * Prefixo: /api/settings
+ */
 export async function settingsRoutes(app) {
-  const adminOnly = { onRequest: [requireRole(app, "ADMIN")] };
+  // Apenas ADMIN pode gerenciar configurações
+  const adminOnly = (app) => requireRole(app, "ADMIN");
 
-  app.get("/ai", adminOnly, async (_req, reply) => {
-    const settings = await prisma.systemSetting.findMany({
-      where: { key: { in: ["GEMINI_API_KEY", "ROSE_SYSTEM_PROMPT"] } },
+  // ── GET / — lista todas as opções ──────────────────────────────────────────
+  app.get("/", async (_req, reply) => {
+    const options = await prisma.systemOption.findMany({
+      orderBy: { label: "asc" }
     });
-
-    const map = new Map(settings.map((item) => [item.key, item.value]));
-    const apiKey = map.get("GEMINI_API_KEY") ?? "";
-    const systemPrompt = map.get("ROSE_SYSTEM_PROMPT") ?? "";
-
-    return reply.send({
-      apiKey: maskApiKey(apiKey),
-      systemPrompt,
-    });
+    return reply.send(options);
   });
 
-  app.put("/ai", adminOnly, async (req, reply) => {
-    const { apiKey = "", systemPrompt = "" } = req.body ?? {};
-
-    if (typeof systemPrompt !== "string") {
-      return reply.status(400).send({ message: "systemPrompt precisa ser texto." });
-    }
-
-    await prisma.systemSetting.upsert({
-      where: { key: "ROSE_SYSTEM_PROMPT" },
-      update: { value: systemPrompt },
-      create: { key: "ROSE_SYSTEM_PROMPT", value: systemPrompt },
+  // ── GET /:group — lista opções de um grupo específico ───────────────────────
+  app.get("/:group", async (req, reply) => {
+    const { group } = req.params;
+    const options = await prisma.systemOption.findMany({
+      where: { group },
+      orderBy: { label: "asc" }
     });
-
-    const canUpdateApiKey =
-      typeof apiKey === "string" && apiKey.trim() !== "" && !apiKey.includes("*");
-
-    if (canUpdateApiKey) {
-      await prisma.systemSetting.upsert({
-        where: { key: "GEMINI_API_KEY" },
-        update: { value: apiKey.trim() },
-        create: { key: "GEMINI_API_KEY", value: apiKey.trim() },
-      });
-    }
-
-    const saved = await prisma.systemSetting.findMany({
-      where: { key: { in: ["GEMINI_API_KEY", "ROSE_SYSTEM_PROMPT"] } },
-    });
-
-    const map = new Map(saved.map((item) => [item.key, item.value]));
-
-    return reply.send({
-      message: "Configuracoes da IA salvas com sucesso.",
-      data: {
-        apiKey: maskApiKey(map.get("GEMINI_API_KEY") ?? ""),
-        systemPrompt: map.get("ROSE_SYSTEM_PROMPT") ?? "",
-      },
-    });
+    return reply.send(options);
   });
 
-  app.post("/ai/test", adminOnly, async (req, reply) => {
-    // ... codigo de test mantido inalterado
-    const { apiKey = "" } = req.body ?? {};
-
-    const submittedKey = typeof apiKey === "string" ? apiKey.trim() : "";
-    let keyToTest = "";
-
-    if (submittedKey && !submittedKey.includes("*")) {
-      keyToTest = submittedKey;
-    } else {
-      const keySetting = await prisma.systemSetting.findUnique({ where: { key: "GEMINI_API_KEY" } });
-      keyToTest = keySetting?.value?.trim() || "";
-    }
-
-    if (!keyToTest) {
-      return reply.status(400).send({ message: "Nenhuma Gemini API Key valida foi informada para teste." });
-    }
-
-    try {
-      const genAI = new GoogleGenerativeAI(keyToTest);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const result = await model.generateContent("Responda apenas com: OK");
-      const text = result.response.text() || "OK";
-
-      return reply.send({
-        success: true,
-        message: "Conexao com Google Generative AI validada com sucesso.",
-        response: text,
-      });
-    } catch (error) {
-      req.log.error(error);
-      return reply.status(400).send({
-        success: false,
-        message: "Falha ao validar a Gemini API Key. Verifique a chave e tente novamente.",
-      });
-    }
-  });
-
-  app.get("/knowledge", adminOnly, async (_req, reply) => {
-    const docs = await prisma.knowledgeDocument.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        filename: true,
-        createdAt: true,
-        _count: {
-          select: { chunks: true },
-        },
-      },
-    });
-
-    const payload = docs.map((doc) => ({
-      ...doc,
-      fileUrl: `${MINIO_PUBLIC_URL}/${BUCKET_NAME}/${doc.filename}`,
-    }));
-
-    return reply.send(payload);
-  });
-
-  app.post("/knowledge/upload", adminOnly, async (req, reply) => {
-    try {
-      const file = await req.file();
-
-      if (!file) {
-        return reply.status(400).send({ message: "Nenhum arquivo foi enviado." });
-      }
-
-      if (!isAllowedKnowledgeExtension(file.filename)) {
-        return reply.status(400).send({ message: "Formato de arquivo nao suportado para base de conhecimento." });
-      }
-
-      const buffer = await file.toBuffer();
-      
-      // Cria um filename único para não sobrescrever arquivos no MinIO
-      const uniqueFileName = `${Date.now()}-${file.filename}`;
-
-      // Garante que o bucket existe antes de salvar
-      try {
-        await s3Client.send(new HeadBucketCommand({ Bucket: BUCKET_NAME }));
-      } catch (headErr) {
-        if (headErr.name === "NotFound" || headErr.name === "NoSuchBucket" || headErr.$metadata?.httpStatusCode === 404) {
-          await s3Client.send(new CreateBucketCommand({ Bucket: BUCKET_NAME }));
-        } else {
-          throw headErr;
+  // ── POST / — cria ou atualiza uma opção ─────────────────────────────────────
+  app.post("/", {
+    onRequest: [adminOnly(app)],
+    schema: {
+      body: {
+        type: "object",
+        required: ["group", "value", "label"],
+        properties: {
+          group: { type: "string" },
+          value: { type: "string" },
+          label: { type: "string" },
+          color: { type: "string" }
         }
       }
-
-      // Salva no MinIO
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: BUCKET_NAME,
-          Key: uniqueFileName,
-          Body: buffer,
-          ContentType: file.mimetype,
-        })
-      );
-
-      // Salva o registro no banco antes do processamento e vetorização em background
-      const created = await prisma.knowledgeDocument.create({
-        data: { filename: uniqueFileName },
-        select: { id: true, filename: true, createdAt: true },
-      });
-
-      const keySetting = await prisma.systemSetting.findUnique({
-        where: { key: "GEMINI_API_KEY" },
-      });
-      const apiKey = keySetting?.value?.trim() || "";
-
-      if (apiKey) {
-        // Envia para processamento em background pelo microsserviço Python
-        const pythonApiUrl = process.env.PYTHON_API_URL || "http://python-ia:8000";
-        fetch(`${pythonApiUrl}/process_knowledge`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            document_id: created.id,
-            file_name: uniqueFileName,
-            gemini_api_key: apiKey,
-          }),
-        }).catch(err => req.log.error(err, "Falha ao avisar python-ia sobre novo knowledge document"));
-      } else {
-        req.log.warn("GEMINI_API_KEY ausente; documento salvo sem iniciar processamento.");
-      }
-
-      return reply.status(201).send({
-        message: apiKey
-          ? "Arquivo recebido. A IA está processando o documento em segundo plano."
-          : "Arquivo recebido, mas a Gemini API Key nao esta configurada. Configure a chave para processar.",
-        data: created,
-      });
-    } catch (error) {
-      req.log.error(error);
-      return reply.status(500).send({ message: "Erro ao processar upload de arquivo." });
     }
+  }, async (req, reply) => {
+    const { group, value, label, color } = req.body;
+    
+    const option = await prisma.systemOption.upsert({
+      where: { group_value: { group, value } },
+      update: { label, color },
+      create: { group, value, label, color }
+    });
+
+    return reply.send(option);
   });
 
-  app.post("/knowledge/reprocess", adminOnly, async (req, reply) => {
-    try {
-      const keySetting = await prisma.systemSetting.findUnique({
-        where: { key: "GEMINI_API_KEY" },
-      });
-      const apiKey = keySetting?.value?.trim() || "";
-
-      if (!apiKey) {
-        return reply.status(400).send({ message: "GEMINI_API_KEY nao configurada." });
-      }
-
-      const { ids } = req.body ?? {};
-      const normalizedIds = Array.isArray(ids)
-        ? ids.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)
-        : [];
-
-      const docs = await prisma.knowledgeDocument.findMany({
-        where: normalizedIds.length > 0 ? { id: { in: normalizedIds } } : undefined,
-        select: { id: true, filename: true },
-      });
-
-      if (docs.length === 0) {
-        return reply.status(404).send({ message: "Nenhum documento encontrado para reprocessar." });
-      }
-
-      const pythonApiUrl = process.env.PYTHON_API_URL || "http://python-ia:8000";
-      const results = [];
-      let queuedCount = 0;
-
-      for (const doc of docs) {
-        if (!isAllowedKnowledgeExtension(doc.filename)) {
-          results.push({ id: doc.id, filename: doc.filename, status: "skipped_unsupported" });
-          continue;
-        }
-
-        await prisma.knowledgeChunk.deleteMany({ where: { documentId: doc.id } });
-
-        fetch(`${pythonApiUrl}/process_knowledge`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            document_id: doc.id,
-            file_name: doc.filename,
-            gemini_api_key: apiKey,
-          }),
-        }).catch((err) => req.log.error(err, "Falha ao reprocessar knowledge document"));
-
-        results.push({ id: doc.id, filename: doc.filename, status: "queued" });
-        queuedCount += 1;
-      }
-
-      return reply.send({
-        message: `Reprocessamento enfileirado para ${queuedCount} documento(s).`,
-        data: results,
-      });
-    } catch (error) {
-      req.log.error(error);
-      return reply.status(500).send({ message: "Erro ao reprocessar documentos." });
-    }
-  });
-
-  app.delete("/knowledge/:id", adminOnly, async (req, reply) => {
+  // ── DELETE /:id — remove uma opção ──────────────────────────────────────────
+  app.delete("/:id", {
+    onRequest: [adminOnly(app)]
+  }, async (req, reply) => {
     const id = Number(req.params.id);
-
-    if (!Number.isInteger(id) || id <= 0) {
-      return reply.status(400).send({ message: "ID invalido." });
-    }
-
-    try {
-      const doc = await prisma.knowledgeDocument.findUnique({ where: { id } });
-      if (!doc) {
-        return reply.status(404).send({ message: "Documento nao encontrado." });
-      }
-
-      // Remover do MinIO
-      try {
-        await s3Client.send(
-          new DeleteObjectCommand({
-            Bucket: BUCKET_NAME,
-            Key: doc.filename,
-          })
-        );
-      } catch (minioErr) {
-        req.log.warn(minioErr, `Erro ao remover ${doc.filename} do MinIO. Continuando com remocao DB...`);
-      }
-
-      // Remover do banco de dados e os knowledge_chunks associados via CASCADE
-      await prisma.knowledgeDocument.delete({ where: { id } });
-      return reply.send({ message: "Documento e vetores removidos com sucesso." });
-    } catch (dbErr) {
-      req.log.error(dbErr);
-      return reply.status(500).send({ message: "Erro ao excluir o documento." });
-    }
+    await prisma.systemOption.delete({ where: { id } });
+    return reply.send({ message: "Opção removida com sucesso." });
   });
 }

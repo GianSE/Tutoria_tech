@@ -11,7 +11,8 @@ import MateriaisPage from "./pages/MateriaisPage";
 import AgendaPage from "./pages/AgendaPage";
 import PerfilPage from "./pages/PerfilPage";
 import ConfiguracoesIAPage from "./pages/ConfiguracoesIAPage";
-import RoseChatPage from "./pages/RoseChatPage";
+import ConfiguracoesPaginas from "./pages/ConfiguracoesPaginas";
+
 
 export default function App() {
   return (
@@ -25,20 +26,19 @@ export default function App() {
           <Route element={<PrivateRoute />}>
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/rose-chat" element={<RoseChatPage />} />
+
               <Route path="/materiais" element={<MateriaisPage />} />
               <Route path="/agenda"    element={<AgendaPage />} />
               <Route path="/perfil"    element={<PerfilPage />} />
 
-              {/* ── Apenas ADMIN e MENTORA ─────────────────────────────── */}
-              <Route element={<PrivateRoute allowedRoles={["ADMIN", "MENTORA"]} />}>
-                <Route path="/tutorias" element={<TutoriasPage />} />
-              </Route>
+              {/* ── Rotas comuns ───────────────────────────────────────── */}
+              <Route path="/tutorias"  element={<TutoriasPage />} />
 
               {/* ── Apenas ADMIN ───────────────────────────────────────── */}
               <Route element={<PrivateRoute allowedRoles={["ADMIN"]} />}>
                 <Route path="/usuarios" element={<UsuariosPage />} />
                 <Route path="/configuracoes-ia" element={<ConfiguracoesIAPage />} />
+                <Route path="/configuracoes-paginas" element={<ConfiguracoesPaginas />} />
               </Route>
             </Route>
           </Route>

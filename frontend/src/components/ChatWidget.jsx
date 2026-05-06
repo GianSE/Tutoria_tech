@@ -20,7 +20,6 @@ export default function ChatWidget() {
     "Dúvidas sobre o Projeto",
   ];
 
-  const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
   const {
@@ -31,7 +30,10 @@ export default function ChatWidget() {
     setPending,
     clearConversation,
     buildHistory,
+    isChatOpen: isOpen,
+    setIsChatOpen: setIsOpen,
   } = useChat();
+  
   const messages = activeConversation?.messages ?? [];
   const isLoading = pendingIds.includes(activeId);
 
@@ -98,9 +100,9 @@ export default function ChatWidget() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
       {isOpen && (
-        <div className="bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl shadow-violet-500/10 mb-4 w-[28rem] sm:w-[34rem] overflow-hidden flex flex-col transition-all duration-300 h-[36rem]">
+        <div className="fixed inset-0 sm:static sm:inset-auto bg-slate-900 sm:border sm:border-slate-700/60 sm:rounded-2xl shadow-2xl shadow-violet-500/10 sm:mb-4 w-full sm:w-[28rem] md:w-[34rem] overflow-hidden flex flex-col transition-all duration-300 h-full sm:h-[36rem] z-50">
           {/* Header */}
           <div className="bg-slate-800 border-b border-slate-700/60 p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -209,16 +211,16 @@ export default function ChatWidget() {
         </div>
       )}
 
-      {/* Floating Button */}
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className={`${isOpen ? 'rotate-90 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100'} absolute right-0 bottom-0 transition-all duration-300 w-14 h-14 bg-violet-600 hover:bg-violet-500 border border-violet-400/30 text-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_25px_rgba(139,92,246,0.5)] active:scale-95`}
-        title="Fale com a Assistente"
-      >
-        <MessageCircle size={24} />
-      </button>
-
-      {/* O botão fechar flutuante foi removido a pedido do utilizador */}
+      {/* Floating Button — HIDDEN ON MOBILE */}
+      {!isOpen && (
+        <button 
+          onClick={() => setIsOpen(true)}
+          className="hidden md:flex transition-all duration-300 w-14 h-14 bg-violet-600 hover:bg-violet-500 border border-violet-400/30 text-white rounded-full items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_25px_rgba(139,92,246,0.5)] active:scale-95"
+          title="Fale com a Assistente"
+        >
+          <MessageCircle size={24} />
+        </button>
+      )}
     </div>
   );
 }

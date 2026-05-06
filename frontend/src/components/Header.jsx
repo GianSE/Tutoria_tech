@@ -1,69 +1,171 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { LogOut, UserCircle2, AlertTriangle, Menu } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { LogOut, UserCircle2, AlertTriangle, Menu, ChevronDown, Users, Bot, Settings2, Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import NotificationBell from "./NotificationBell";
 import Modal from "./Modal";
 
-export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar }) {
+export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, isImpersonating }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  const menuRef = useRef(null);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
+  // Fecha o menu ao clicar fora
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
+
+  // Esconder ao rolar
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <>
       <header
-        className={`h-16 bg-slate-900/80 backdrop-blur border-b border-slate-800
-                         fixed top-0 right-0 z-10 flex items-center justify-between pr-6 transition-all duration-300 ${
-                           isSidebarExpanded ? "left-64" : "left-16"
-                         }`}
+        className={`h-12 bg-slate-900/80 backdrop-blur border-b border-slate-800
+                         fixed right-0 z-10 flex items-center justify-between pr-4 md:pr-6 transition-all duration-300 
+                         ${isSidebarExpanded ? "md:left-64" : "md:left-16"} left-0
+                         ${!isVisible ? "-translate-y-full" : "translate-y-0"}`}
+        style={{ top: isImpersonating ? "36px" : "0px" }}
       >
         <div className="flex items-center gap-3 pl-4">
+          {/* Logo Mobile */}
+          <div className="flex md:hidden items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
+              <Sparkles size={14} className="text-white" />
+            </div>
+            <span className="text-xs font-bold text-white tracking-tight">Tutoria</span>
+          </div>
+
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+            className="hidden md:flex w-9 h-9 rounded-lg items-center justify-center text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
             title="Expandir/retrair menu"
           >
             <Menu size={18} />
           </button>
-
-          {/* Page title */}
-          <h1 className="text-slate-100 font-semibold text-base tracking-tight">
-            {pageTitle}
-          </h1>
         </div>
 
         {/* Right side */}
         <div className="flex items-center gap-3">
           <NotificationBell />
+          {/* Divider */}
+          <div className="w-px h-6 bg-slate-700" />
 
-          {/* User pill */}
-          <div className="flex items-center gap-2.5 bg-slate-800 rounded-xl px-3 py-1.5 border border-slate-700">
-            <UserCircle2 size={18} className="text-violet-400 flex-shrink-0" />
-            <span className="text-sm text-slate-200 font-medium max-w-[140px] truncate">
-              {user?.name ?? user?.email ?? "Usuário"}
-            </span>
-            <span className="text-[10px] text-slate-500 capitalize hidden sm:inline">
-              {user?.role?.toLowerCase()}
-            </span>
+          {/* User dropdown */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen((prev) => !prev)}
+              className="flex items-center gap-2.5 px-2 py-1 rounded-lg
+                         hover:bg-slate-800 transition-all duration-150 cursor-pointer"
+            >
+              <UserCircle2 size={20} className="text-violet-400 flex-shrink-0" />
+              <div className="hidden md:flex flex-col items-start leading-tight">
+                <span className="text-sm text-slate-200 font-medium max-w-[140px] truncate">
+                  {user?.name ?? user?.email ?? "Usuário"}
+                </span>
+                <span className="text-[10px] text-slate-500 capitalize">
+                  {user?.role?.toLowerCase()}
+                </span>
+              </div>
+              <ChevronDown
+                size={14}
+                className={`text-slate-500 transition-transform duration-200 ${menuOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {/* Dropdown menu */}
+            {menuOpen && (
+              <div className="absolute right-0 top-10 w-52 bg-slate-900 border border-slate-700
+                              rounded-xl shadow-2xl shadow-black/40 z-50 overflow-hidden animate-slide-up">
+                <Link
+                  to="/perfil"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300
+                             hover:bg-slate-800 hover:text-white transition-colors"
+                >
+                  <UserCircle2 size={16} className="text-violet-400" />
+                  Meu Perfil
+                </Link>
+
+                {/* ── Seção Admin ── */}
+                {user?.role === "ADMIN" && (
+                  <>
+                    <div className="border-t border-slate-800">
+                      <p className="px-4 pt-2.5 pb-1 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">
+                        Administração
+                      </p>
+                    </div>
+                    <Link
+                      to="/usuarios"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300
+                                 hover:bg-slate-800 hover:text-white transition-colors"
+                    >
+                      <Users size={16} className="text-slate-400" />
+                      Usuários
+                    </Link>
+                    <Link
+                      to="/configuracoes-ia"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300
+                                 hover:bg-slate-800 hover:text-white transition-colors"
+                    >
+                      <Bot size={16} className="text-slate-400" />
+                      Configuração da IA
+                    </Link>
+                    <Link
+                      to="/configuracoes-paginas"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300
+                                 hover:bg-slate-800 hover:text-white transition-colors"
+                    >
+                      <Settings2 size={16} className="text-slate-400" />
+                      Configurações de Páginas
+                    </Link>
+                  </>
+                )}
+
+                <div className="border-t border-slate-800" />
+
+                <button
+                  onClick={() => { setMenuOpen(false); setConfirmOpen(true); }}
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-slate-400
+                             hover:bg-red-500/10 hover:text-red-400 transition-colors w-full text-left"
+                >
+                  <LogOut size={16} />
+                  Sair
+                </button>
+              </div>
+            )}
           </div>
-
-          {/* Logout — abre modal de confirmação */}
-          <button
-            onClick={() => setConfirmOpen(true)}
-            className="w-9 h-9 rounded-lg flex items-center justify-center
-                       text-slate-400 hover:bg-red-500/15 hover:text-red-400
-                       transition-all duration-150"
-            title="Sair"
-          >
-            <LogOut size={17} />
-          </button>
         </div>
       </header>
 

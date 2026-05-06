@@ -1,5 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
-import { CalendarDays, MapPin, Clock, Plus, CheckCircle2, Pencil, Trash2, Loader2, AlertCircle, Users } from "lucide-react";
+import { 
+  CalendarDays, MapPin, Clock, Plus, CheckCircle2, Pencil, Trash2, Loader2, 
+  AlertCircle, Search, Filter, X, ChevronDown, Calendar, ExternalLink,
+  ChevronLeft, ChevronRight
+} from "lucide-react";
 import Modal from "../components/Modal";
 import { apiFetch } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -27,7 +31,7 @@ const STATUS_STYLE = {
 const STATUS_LABELS = { REALIZADA: "Realizado", PENDENTE: "Agendado", CANCELADA: "Cancelado" };
 
 const EMPTY_FORM = {
-  title: "", date: "", local: "",
+  title: "", description: "", date: "", local: "",
   type: "SESSAO_DE_TUTORIA", status: "PENDENTE",
 };
 
@@ -53,6 +57,8 @@ export default function AgendaPage() {
 
   const [schedules, setSchedules]           = useState([]);
   const [loading, setLoading]               = useState(true);
+  const [showFilters, setShowFilters]       = useState(false);
+  const [search, setSearch]                 = useState("");
   const [filtro, setFiltro]                 = useState("Todos");
   const [statusFiltro, setStatusFiltro]     = useState("Todos");
   const [modalOpen, setModalOpen]           = useState(false);
@@ -62,15 +68,11 @@ export default function AgendaPage() {
   const [saving, setSaving]                 = useState(false);
   const [deleting, setDeleting]             = useState(false);
   const [formError, setFormError]           = useState("");
-
-  // Estado do modal de presença
-  const [presencaModal, setPresencaModal]   = useState(null); // { scheduleId, title }
-  const [pUsers, setPUsers]                 = useState([]);
-  const [pChecked, setPChecked]             = useState(new Set());
-  const [pLoading, setPLoading]             = useState(false);
-  const [pSaving, setPSaving]               = useState(false);
-  const [allUsers, setAllUsers]             = useState([]);
-  const [pManual, setPManual]               = useState(""); // presencas manuais quando sem usuários selecionados
+  const [viewEvent, setViewEvent]           = useState(null);
+  
+  const [sortBy, setSortBy]                 = useState("recent");
+  const [currentPage, setCurrentPage]       = useState(1);
+  const itemsPerPage = 5;
 
   const tipos = ["Todos", ...Object.keys(TIPO_LABELS)];
 
@@ -94,15 +96,15 @@ export default function AgendaPage() {
 
   const openEdit = (ev) => {
     setEditingId(ev.id);
-    // Converte ISO → formato yyyy-MM-dd para o input date
     const d = new Date(ev.date);
     const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     setForm({
-      title:     ev.title,
-      date:      dateStr,
-      local:     ev.local ?? "",
-      type:      ev.type,
-      status:    ev.status,
+      title:       ev.title,
+      description: ev.description ?? "",
+      date:        dateStr,
+      local:       ev.local ?? "",
+      type:        ev.type,
+      status:      ev.status,
     });
     setFormError("");
     setModalOpen(true);
@@ -149,244 +151,284 @@ export default function AgendaPage() {
   };
 
   const filtered = schedules
+    .filter((s) => (search === "" || s.title.toLowerCase().includes(search.toLowerCase()) || s.description?.toLowerCase().includes(search.toLowerCase())))
     .filter((s) => (filtro === "Todos" || s.type === filtro))
     .filter((s) => (statusFiltro === "Todos" || s.status === statusFiltro))
     .sort((a, b) => {
-      // Prioridade 1: PENDENTE (Agendado) no topo
+      // Prioridade para PENDENTE (Agendado)
       if (a.status === "PENDENTE" && b.status !== "PENDENTE") return -1;
       if (a.status !== "PENDENTE" && b.status === "PENDENTE") return 1;
+
+      if (sortBy === "az") return a.title.localeCompare(b.title);
       
-      // Prioridade 2: Data
-      // Para PENDENTE: Ascendente (mais próximo primeiro)
-      // Para Outros: Descendente (mais recentes primeiro)
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
-      if (a.status === "PENDENTE") return dateA - dateB;
+      
+      if (sortBy === "oldest") return dateA - dateB;
       return dateB - dateA;
     });
 
-  // Carrega todos os usuários para o checklist de presença
-  useEffect(() => {
-    apiFetch("/api/users")
-      .then((r) => r.json())
-      .then(setAllUsers)
-      .catch(() => {});
-  }, []);
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const currentItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const openPresenca = async (ev) => {
-    setPresencaModal({ scheduleId: ev.id, title: ev.title, presencas: ev.presencas ?? 0 });
-    setPManual(String(ev.presencas ?? 0));
-    setPLoading(true);
-    try {
-      const res = await apiFetch(`/api/schedules/${ev.id}/attendance`);
-      const data = await res.json();
-      const presentIds = new Set((data.attendances ?? []).map((a) => a.user.id));
-      setPChecked(presentIds);
-    } catch {
-      setPChecked(new Set());
-    } finally {
-      setPLoading(false);
-    }
-  };
-
-  // Toggle local (sem salvar ainda)
-  const togglePresenca = (userId) => {
-    setPChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(userId)) next.delete(userId);
-      else next.add(userId);
-      return next;
-    });
-  };
-
-  // Salva a lista de presença via PUT (bulk)
-  const savePresenca = async () => {
-    if (!presencaModal) return;
-    setPSaving(true);
-    try {
-      const userIds = pChecked.size > 0
-        ? Array.from(pChecked)
-        : []; // lista vazia → vai setar presencas manual
-
-      if (pChecked.size > 0) {
-        // Salva via attendance (contagem automática)
-        await apiFetch(
-          `/api/schedules/${presencaModal.scheduleId}/attendance`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userIds }),
-          }
-        );
-      } else {
-        // Sem usuários selecionados → salva contagem manual
-        await apiFetch(
-          `/api/schedules/${presencaModal.scheduleId}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ presencas: Number(pManual) || 0 }),
-          }
-        );
-      }
-
-      await fetchSchedules();
-      setPresencaModal(null);
-    } finally {
-      setPSaving(false);
-    }
+  const counts = {
+    total: schedules.length,
+    agendados: schedules.filter(s => s.status === "PENDENTE").length,
+    realizados: schedules.filter(s => s.status === "REALIZADA").length,
+    cancelados: schedules.filter(s => s.status === "CANCELADA").length,
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Agenda de Encontros</h2>
-          <p className="text-slate-400 text-sm mt-0.5">Sessões, Meninas no Lab e Rodas de Conversa.</p>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Agenda de Encontros</h2>
+          <p className="text-slate-400 text-sm mt-1">Sessões, Meninas no Lab e Rodas de Conversa.</p>
         </div>
-        {canManage && (
-          <button onClick={openNew} className="btn-primary flex items-center gap-2 self-start sm:self-auto">
-            <Plus size={16} /> Novo Evento
+        <div className="flex items-center gap-3 self-start md:self-auto">
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border
+              ${showFilters 
+                ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/20" 
+                : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white"}`}
+          >
+            <Filter size={16} /> {showFilters ? "Ocultar Filtros" : "Filtrar"}
           </button>
-        )}
-      </div>
-
-      {/* Filtros */}
-      <div className="space-y-3">
-        {/* por tipo */}
-        <div className="flex flex-wrap gap-2">
-          {tipos.map((t) => (
-            <button key={t} onClick={() => setFiltro(t)}
-              className={[
-                "px-4 py-1.5 rounded-full text-xs font-medium border transition-all duration-150",
-                filtro === t
-                  ? "bg-violet-600/25 text-violet-300 border-violet-500/50"
-                  : "bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-200",
-              ].join(" ")}>
-              {TIPO_LABELS[t] ?? t}
-            </button>
-          ))}
-        </div>
-        {/* por status */}
-        <div className="flex flex-wrap gap-2">
-          {["Todos", "PENDENTE", "REALIZADA", "CANCELADA"].map((s) => (
-            <button key={s} onClick={() => setStatusFiltro(s)}
-              className={[
-                "px-4 py-1.5 rounded-full text-xs font-medium border transition-all duration-150",
-                statusFiltro === s
-                  ? "bg-emerald-600/25 text-emerald-300 border-emerald-500/50"
-                  : "bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-200",
-              ].join(" ")}>
-              {STATUS_LABELS[s] ?? s}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Lista */}
-      {loading ? (
-        <div className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="card animate-pulse flex gap-4">
-              <div className="w-16 h-16 rounded-xl bg-slate-800 flex-shrink-0" />
-              <div className="flex-1 space-y-2">
-                <div className="w-1/2 h-4 bg-slate-800 rounded" />
-                <div className="w-1/3 h-3 bg-slate-800 rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="card text-center py-12">
-          <p className="text-slate-500 text-sm">
-            {schedules.length === 0 ? "Nenhum evento agendado ainda." : "Nenhum evento neste filtro."}
-          </p>
-          {schedules.length === 0 && (
-            <button onClick={openNew} className="btn-primary mt-4 inline-flex items-center gap-2">
-              <Plus size={15} /> Agendar primeiro evento
+          {canManage && (
+            <button onClick={openNew} className="btn-primary px-5 py-2.5 flex items-center gap-2 shadow-lg shadow-violet-500/20">
+              <Plus size={18} /> Novo Evento
             </button>
           )}
         </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((ev) => (
-            <div key={ev.id}
-              className="card hover:border-slate-600 transition-all duration-200
-                         flex flex-col sm:flex-row sm:items-center gap-4">
-              {/* Data */}
-              <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-slate-800 border border-slate-700
-                              flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] text-slate-500 font-semibold uppercase">{fmtMonth(ev.date)}</span>
-                <span className="text-2xl font-bold text-white leading-tight">{fmtDay(ev.date)}</span>
-              </div>
+      </div>
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h3 className="text-white font-semibold text-sm">{ev.title}</h3>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border
-                                    ${TIPO_STYLE[ev.type] ?? ""}`}>
-                    {TIPO_LABELS[ev.type] ?? ev.type}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                  <span className="flex items-center gap-1">
-                    <CalendarDays size={11} />{fmtDate(ev.date)}
-                  </span>
-                  {ev.local && (
-                    <span className="flex items-center gap-1"><MapPin size={11} />{ev.local}</span>
-                  )}
-                </div>
+      {/* Advanced Filters Card - Collapsible */}
+      {showFilters && (
+        <div className="card space-y-5 !p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div className="md:col-span-8 relative group">
+              <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-violet-400 transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Buscar eventos por título ou descrição..." 
+                className="input-field pl-11 !py-3"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            
+            <div className="md:col-span-3 relative">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                <Calendar size={16} />
               </div>
+              <select 
+                className="input-field pl-10 appearance-none !py-3"
+                value={filtro}
+                onChange={(e) => { setFiltro(e.target.value); setCurrentPage(1); }}
+              >
+                {tipos.map(t => <option key={t} value={t}>{TIPO_LABELS[t] ?? (t === "Todos" ? "Todos os tipos" : t)}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            </div>
 
-              {/* Status + badge vencido */}
-              <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5
-                                  rounded-full ${STATUS_STYLE[ev.status] ?? ""}`}>
-                  {ev.status === "REALIZADA" && <CheckCircle2 size={12} />}
-                  {ev.status === "PENDENTE"  && <Clock size={12} />}
-                  {STATUS_LABELS[ev.status] ?? ev.status}
-                </div>
-                {ev.isOverdue && (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full
-                                   bg-red-500/15 text-red-400 border border-red-500/30">
-                    Data vencida
+            <div className="md:col-span-1">
+              <button 
+                onClick={() => { setSearch(""); setFiltro("Todos"); setStatusFiltro("Todos"); setSortBy("recent"); setCurrentPage(1); }}
+                className="w-full h-full flex items-center justify-center text-slate-400 hover:text-white bg-slate-800 rounded-xl hover:bg-slate-700 transition-all border border-slate-700"
+                title="Limpar filtros"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-800/50">
+            <div className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-slate-800">
+              {[
+                { id: "Todos", label: "Todos", count: counts.total },
+                { id: "PENDENTE", label: "Agendados", count: counts.agendados },
+                { id: "REALIZADA", label: "Realizados", count: counts.realizados },
+                { id: "CANCELADA", label: "Cancelados", count: counts.cancelados },
+              ].map((tab) => (
+                <button 
+                  key={tab.id}
+                  onClick={() => setStatusFiltro(tab.id)}
+                  className={`px-4 py-2 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2
+                    ${statusFiltro === tab.id 
+                      ? "bg-slate-800 text-white shadow-sm" 
+                      : "text-slate-500 hover:text-slate-300"}`}
+                >
+                  {tab.label}
+                  <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${statusFiltro === tab.id ? "bg-violet-600 text-white" : "bg-slate-800 text-slate-500"}`}>
+                    {tab.count}
                   </span>
-                )}
-              </div>
+                </button>
+              ))}
+            </div>
 
-              {/* Ações */}
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {/* Botão de presença — só para ADMIN/MENTORA e status REALIZADA */}
-                {canManage && ev.status === "REALIZADA" && (
-                  <button onClick={() => openPresenca(ev)}
-                    title="Gerenciar presença"
-                    className="flex items-center gap-1 px-2.5 h-8 rounded-lg text-xs font-semibold
-                               text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all">
-                    <Users size={13} /> {ev.presencas}
-                  </button>
-                )}
-                {canManage && (
-                  <>
-                    <button onClick={() => openEdit(ev)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center
-                                 text-slate-500 hover:bg-slate-700 hover:text-slate-200 transition-all">
-                      <Pencil size={14} />
-                    </button>
-                    <button onClick={() => setConfirmDel({ id: ev.id, name: ev.title })}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center
-                                 text-slate-500 hover:bg-red-500/15 hover:text-red-400 transition-all">
-                      <Trash2 size={14} />
-                    </button>
-                  </>
-                )}
+            <div className="flex items-center gap-3">
+              <div className="relative min-w-[160px]">
+                <select 
+                  className="input-field !py-2 text-xs appearance-none pr-10"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  <option value="recent">Mais recentes</option>
+                  <option value="oldest">Mais antigos</option>
+                  <option value="az">A - Z</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
               </div>
             </div>
-          ))}
+          </div>
         </div>
       )}
 
-      {/* ─── Modal: Criar / Editar Evento ─────────────────────────────────────── */}
+      {/* Lista Section */}
+      <div className="flex-1 flex flex-col min-h-[400px]">
+        {loading ? (
+          <div className="space-y-3 flex-1">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="card animate-pulse flex gap-4 p-4">
+                <div className="w-14 h-14 rounded-xl bg-slate-800 flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="w-1/2 h-4 bg-slate-800 rounded" />
+                  <div className="w-1/3 h-3 bg-slate-800 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="card text-center py-20 bg-slate-900/20 flex-1 flex flex-col justify-center">
+            <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-6 text-slate-600">
+              <CalendarDays size={40} />
+            </div>
+            <h3 className="text-white font-semibold text-lg">Nenhum evento encontrado</h3>
+            <p className="text-slate-500 text-sm mt-2 max-w-xs mx-auto">Tente ajustar seus filtros ou termos de pesquisa para encontrar o que procura.</p>
+            <button onClick={() => { setSearch(""); setFiltro("Todos"); setStatusFiltro("Todos"); setCurrentPage(1); }} className="btn-primary mt-8 inline-flex px-6 self-center">
+              Limpar Filtros
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3 flex-1">
+            {currentItems.map((ev) => (
+              <div key={ev.id}
+                onClick={() => setViewEvent(ev)}
+                className="card hover:border-violet-500/40 transition-all duration-300 cursor-pointer group relative overflow-hidden p-0">
+                
+                <div className="absolute inset-0 bg-gradient-to-tr from-violet-500/0 via-violet-500/0 to-violet-500/[0.02] pointer-events-none" />
+
+                <div className="flex flex-row items-stretch min-h-[80px]">
+                  {/* Date Side Strip */}
+                  <div className="w-16 flex-shrink-0 bg-slate-900/50 border-r border-slate-800 flex flex-col items-center justify-center text-center px-1">
+                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{fmtMonth(ev.date)}</span>
+                    <span className="text-xl font-black text-white leading-tight">{fmtDay(ev.date)}</span>
+                    <div className="mt-1 w-1 h-1 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
+                  </div>
+
+                  {/* Content Area */}
+                  <div className="flex-1 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-2 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border shadow-sm tracking-tight
+                                          ${TIPO_STYLE[ev.type] ?? ""}`}>
+                          {TIPO_LABELS[ev.type]?.toUpperCase() ?? ev.type}
+                        </span>
+                        <div className={`flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md border shadow-sm ${STATUS_STYLE[ev.status] ?? ""}`}>
+                          {ev.status === "REALIZADA" && <CheckCircle2 size={10} />}
+                          {STATUS_LABELS[ev.status]?.toUpperCase() ?? ev.status}
+                        </div>
+                        {ev.isOverdue && (
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-red-500/15 text-red-400 border border-red-500/30 animate-pulse">
+                            VENCIDO
+                          </span>
+                        )}
+                      </div>
+                      
+                      <h3 className="text-white font-bold text-base md:text-sm group-hover:text-violet-300 transition-colors leading-tight">
+                        {ev.title}
+                      </h3>
+
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <span className="flex items-center gap-1.5 font-medium text-[11px] md:text-[10px] text-slate-400">
+                          <Clock size={12} className="text-slate-600" /> {fmtDate(ev.date)}
+                        </span>
+                        {ev.local && (
+                          <span className="flex items-center gap-1.5 font-medium text-[11px] md:text-[10px] text-slate-500 truncate max-w-[200px]">
+                            <MapPin size={12} className="text-slate-600" /> {ev.local}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions Bar */}
+                    <div className="flex items-center justify-between md:justify-end gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-slate-800/50" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-1">
+                        {canManage && (
+                          <>
+                            <button onClick={() => openEdit(ev)}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center
+                                         text-slate-400 hover:bg-slate-700 hover:text-white transition-all">
+                              <Pencil size={14} />
+                            </button>
+                            <button onClick={() => setConfirmDel({ id: ev.id, name: ev.title })}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center
+                                         text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all">
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-violet-400 bg-violet-500/10 px-3 py-1.5 rounded-lg border border-violet-500/20 md:bg-transparent md:border-0 md:p-0">
+                        <span className="text-[10px] font-bold uppercase tracking-widest md:hidden">Ver Detalhes</span>
+                        <ExternalLink size={16} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-1.5 pt-6">
+          <button 
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(p => p - 1)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-800 text-slate-400 hover:bg-slate-800 disabled:opacity-30 transition-all"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          
+          {[...Array(totalPages)].map((_, i) => (
+            <button 
+              key={i}
+              onClick={() => setCurrentPage(i + 1)}
+              className={`w-8 h-8 rounded-lg text-xs font-bold transition-all border
+                ${currentPage === i + 1 
+                  ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/20" 
+                  : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"}`}
+            >
+              {i + 1}
+            </button>
+          ))}
+
+          <button 
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(p => p + 1)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-800 text-slate-400 hover:bg-slate-800 disabled:opacity-30 transition-all"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* Modals follow... same logic as before but updated UI */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)}
              title={editingId ? "Editar Evento" : "Novo Evento"}>
         <form onSubmit={handleSave} className="space-y-4">
@@ -394,6 +436,11 @@ export default function AgendaPage() {
             <label className="block text-sm font-medium text-slate-300 mb-1.5">Título</label>
             <input type="text" required placeholder="Ex: Meninas no Lab #3" className="input-field"
               value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Descrição/Detalhes</label>
+            <textarea rows={3} placeholder="O que será abordado? Algum material necessário?" className="input-field resize-none"
+              value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -445,7 +492,6 @@ export default function AgendaPage() {
         </form>
       </Modal>
 
-      {/* ─── Modal: Confirmar Exclusão ─────────────────────────────────────────── */}
       <Modal isOpen={!!confirmDel} onClose={() => setConfirmDel(null)} title="Confirmar Exclusão" size="sm">
         <p className="text-slate-300 text-sm mb-5">
           Deseja remover o evento <span className="font-semibold text-white">"{confirmDel?.name}"</span>?
@@ -464,96 +510,42 @@ export default function AgendaPage() {
         </div>
       </Modal>
 
-      {/* Modal: Registro de Presenca */}
-      <Modal isOpen={!!presencaModal} onClose={() => setPresencaModal(null)}
-             title={`Presenca - ${presencaModal?.title ?? ""}`}>
-        <p className="text-slate-500 text-xs mb-4">
-          Selecione quem esteve presente. Clique em <strong className="text-slate-300">Salvar</strong> para confirmar.
-        </p>
-        {pLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 size={20} className="animate-spin text-violet-400" />
-          </div>
-        ) : (
-          <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
-            {allUsers.length > 0 && (
-              <div className="flex items-center justify-between px-3 py-2 mb-1 border-b border-slate-800">
-                <span className="text-xs text-slate-500 font-medium">{allUsers.length} usuários</span>
-                <div className="flex gap-2">
-                  <button type="button"
-                    onClick={() => setPChecked(new Set(allUsers.map((u) => u.id)))}
-                    className="text-xs text-violet-400 hover:text-violet-300 font-medium transition-colors">
-                    Selecionar todos
-                  </button>
-                  <span className="text-slate-700">·</span>
-                  <button type="button"
-                    onClick={() => setPChecked(new Set())}
-                    className="text-xs text-slate-500 hover:text-slate-300 font-medium transition-colors">
-                    Limpar
-                  </button>
-                </div>
+      <Modal isOpen={!!viewEvent} onClose={() => setViewEvent(null)}
+             title={viewEvent?.title ?? "Detalhes do Evento"} size="md">
+        {viewEvent && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-3">
+              <div className={`text-[10px] font-bold px-2.5 py-1 rounded-full border shadow-sm
+                                ${TIPO_STYLE[viewEvent.type] ?? ""}`}>
+                {TIPO_LABELS[viewEvent.type] ?? viewEvent.type}
               </div>
+              <div className={`text-[10px] font-bold px-2.5 py-1 rounded-full border shadow-sm ${STATUS_STYLE[viewEvent.status] ?? ""}`}>
+                {STATUS_LABELS[viewEvent.status] ?? viewEvent.status}
+              </div>
+            </div>
+
+            {viewEvent.description ? (
+              <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-800">
+                <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">{viewEvent.description}</p>
+              </div>
+            ) : (
+              <p className="text-slate-600 text-sm italic">Sem descrição para este evento.</p>
             )}
-            {allUsers.length === 0 && (
-              <p className="text-slate-500 text-sm text-center py-6">Nenhum usuario cadastrado.</p>
-            )}
-            {allUsers.map((u) => {
-              const isChecked = pChecked.has(u.id);
-              return (
-                <label key={u.id}
-                  className={[
-                    "flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all",
-                    isChecked
-                      ? "bg-emerald-500/10 border border-emerald-500/20"
-                      : "hover:bg-slate-800 border border-transparent",
-                  ].join(" ")}>
-                  <input type="checkbox" checked={isChecked} onChange={() => togglePresenca(u.id)}
-                    className="w-4 h-4 accent-emerald-500" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-slate-200 text-sm font-medium">{u.name}</p>
-                    <p className="text-slate-500 text-xs">{u.role}</p>
-                  </div>
-                  {isChecked && <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0" />}
-                </label>
-              );
-            })}
+
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800">
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <CalendarDays size={16} className="text-violet-400" />
+                <span className="font-medium">{fmtDate(viewEvent.date)}</span>
+              </div>
+              {viewEvent.local && (
+                <div className="flex items-center gap-2 text-sm text-slate-400">
+                  <MapPin size={16} className="text-violet-400" />
+                  <span className="truncate font-medium">{viewEvent.local}</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
-
-        <div className="mt-5 pt-4 border-t border-slate-800 space-y-3">
-          {pChecked.size === 0 && !pLoading && (
-            <div className="flex items-center gap-3">
-              <label className="text-slate-400 text-sm whitespace-nowrap">Presencas (manual):</label>
-              <input
-                type="number" min={0}
-                className="input-field py-1 text-sm w-28"
-                value={pManual}
-                onChange={(e) => setPManual(e.target.value)}
-                placeholder="0"
-              />
-              <span className="text-slate-600 text-xs italic">nenhum user selecionado</span>
-            </div>
-          )}
-          {pChecked.size > 0 && (
-            <p className="text-sm text-slate-400">
-              <span className="text-white font-bold">{pChecked.size}</span>{" "}
-              presente{pChecked.size !== 1 ? "s" : ""} selecionado{pChecked.size !== 1 ? "s" : ""}
-            </p>
-          )}
-          <div className="flex justify-end gap-3">
-            <button onClick={() => setPresencaModal(null)}
-              className="px-4 py-2 text-sm rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
-              Cancelar
-            </button>
-            <button onClick={savePresenca} disabled={pSaving}
-              className="btn-primary flex items-center gap-2 disabled:opacity-60">
-              {pSaving
-                ? <><Loader2 size={14} className="animate-spin" />Salvando...</>
-                : <><CheckCircle2 size={14} />Salvar Presenca</>
-              }
-            </button>
-          </div>
-        </div>
       </Modal>
     </div>
   );

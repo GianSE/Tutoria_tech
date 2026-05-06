@@ -62,21 +62,23 @@ export async function scheduleRoutes(app) {
         type: "object",
         required: ["title", "date"],
         properties: {
-          title:     { type: "string" },
-          date:      { type: "string" },
-          local:     { type: "string" },
-          type:      { type: "string", enum: VALID_TYPES },
-          status:    { type: "string", enum: VALID_STATUS },
-          presencas: { type: "integer", minimum: 0 },
+          title:       { type: "string" },
+          description: { type: "string" },
+          date:        { type: "string" },
+          local:       { type: "string" },
+          type:        { type: "string", enum: VALID_TYPES },
+          status:      { type: "string", enum: VALID_STATUS },
+          presencas:   { type: "integer", minimum: 0 },
         },
       },
     },
   }, async (req, reply) => {
-    const { title, date, local, type, status, presencas } = req.body;
+    const { title, description, date, local, type, status, presencas } = req.body;
 
     const schedule = await prisma.schedule.create({
       data: {
         title,
+        description,
         date:      new Date(date),
         local,
         type:      type      ?? "SESSAO_DE_TUTORIA",
@@ -96,26 +98,28 @@ export async function scheduleRoutes(app) {
       body: {
         type: "object",
         properties: {
-          title:     { type: "string" },
-          date:      { type: "string" },
-          local:     { type: "string" },
-          type:      { type: "string", enum: VALID_TYPES },
-          status:    { type: "string", enum: VALID_STATUS },
-          presencas: { type: "integer", minimum: 0 },
+          title:       { type: "string" },
+          description: { type: "string" },
+          date:        { type: "string" },
+          local:       { type: "string" },
+          type:        { type: "string", enum: VALID_TYPES },
+          status:      { type: "string", enum: VALID_STATUS },
+          presencas:   { type: "integer", minimum: 0 },
         },
       },
     },
   }, async (req, reply) => {
     const id = Number(req.params.id);
-    const { title, date, local, type, status, presencas } = req.body;
+    const { title, description, date, local, type, status, presencas } = req.body;
 
     const data = {};
-    if (title     !== undefined) data.title     = title;
-    if (date      !== undefined) data.date      = new Date(date);
-    if (local     !== undefined) data.local     = local;
-    if (type      !== undefined) data.type      = type;
-    if (status    !== undefined) data.status    = status;
-    if (presencas !== undefined) data.presencas = presencas;
+    if (title       !== undefined) data.title       = title;
+    if (description !== undefined) data.description = description;
+    if (date        !== undefined) data.date        = new Date(date);
+    if (local       !== undefined) data.local       = local;
+    if (type        !== undefined) data.type        = type;
+    if (status      !== undefined) data.status      = status;
+    if (presencas   !== undefined) data.presencas   = presencas;
 
     // Registra atividade se a sessão foi marcada como realizada
     if (status === "REALIZADA") {

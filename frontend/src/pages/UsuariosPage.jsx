@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Pencil, Trash2, Search, UserCircle2, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, UserCircle2, Loader2, AlertCircle, Eye } from "lucide-react";
 import Modal from "../components/Modal";
+import { useAuth } from "../context/AuthContext";
+import { apiFetch } from "../lib/api";
 
 const ROLE_LABELS = { ADMIN: "Admin", MENTORA: "Mentora", ALUNA: "Aluna" };
 const ROLE_STYLES = {
@@ -12,6 +14,7 @@ const ROLE_STYLES = {
 const EMPTY_FORM = { name: "", email: "", password: "", role: "ALUNA", birthDate: "" };
 
 export default function UsuariosPage() {
+  const { impersonate } = useAuth();
   const [users, setUsers]           = useState([]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
@@ -33,6 +36,21 @@ export default function UsuariosPage() {
   }, []);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  const handleImpersonate = async (targetUser) => {
+    try {
+      const res = await apiFetch(`/api/auth/impersonate/${targetUser.id}`, {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      
+      impersonate(data.user, data.token);
+      window.location.href = "/dashboard";
+    } catch (err) {
+      alert("Erro ao imitar visão: " + err.message);
+    }
+  };
 
   const openNew = () => {
     setEditingId(null);
@@ -122,8 +140,8 @@ export default function UsuariosPage() {
         />
       </div>
 
-      {/* Tabela */}
-      <div className="card p-0 overflow-hidden">
+      {/* Tabela (Desktop) */}
+      <div className="hidden md:block card p-0 overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-800 text-left">
@@ -163,6 +181,13 @@ export default function UsuariosPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1">
+                      {u.role !== "ADMIN" && (
+                        <button onClick={() => handleImpersonate(u)}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center
+                                     text-violet-400 hover:bg-violet-500/15 transition-all" title="Imitar Visão">
+                          <Eye size={14} />
+                        </button>
+                      )}
                       <button onClick={() => openEdit(u)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center
                                    text-slate-500 hover:bg-slate-700 hover:text-slate-200 transition-all" title="Editar">
@@ -180,6 +205,59 @@ export default function UsuariosPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Lista de Cards (Mobile) */}
+      <div className="grid grid-cols-1 gap-3 md:hidden">
+        {loading ? (
+          <div className="text-center py-10 text-slate-500">
+            <Loader2 size={24} className="animate-spin mx-auto mb-2" />
+            Carregando usuários...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="card text-center py-10 text-slate-500 text-sm italic">
+            Nenhum usuário encontrado.
+          </div>
+        ) : (
+          filtered.map((u) => (
+            <div key={u.id} className="card p-4 space-y-4 hover:border-violet-500/30 transition-all">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 text-violet-400">
+                    <UserCircle2 size={24} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-white font-bold text-sm truncate">{u.name}</p>
+                    <p className="text-slate-500 text-[11px] truncate">{u.email}</p>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${ROLE_STYLES[u.role]}`}>
+                  {ROLE_LABELS[u.role]?.toUpperCase() ?? u.role}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-slate-800/50">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => openEdit(u)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 text-[11px] font-bold hover:text-white transition-all">
+                    <Pencil size={12} /> Editar
+                  </button>
+                  <button onClick={() => setConfirmDel({ id: u.id, name: u.name })}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+
+                {u.role !== "ADMIN" && (
+                  <button onClick={() => handleImpersonate(u)}
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-violet-500/10 text-violet-400 text-[11px] font-black border border-violet-500/20 active:scale-95 transition-all">
+                    <Eye size={14} /> IMITAR VISÃO
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* ─── Modal: Criar / Editar Usuário ─────────────────────────────────────── */}

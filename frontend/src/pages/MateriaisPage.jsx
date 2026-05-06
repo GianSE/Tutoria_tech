@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { 
   Download, BookOpen, Zap, Code2, Lightbulb, Plus, ExternalLink, Pencil, Trash2, 
-  Loader2, AlertCircle, Upload, X, FileText, Video, Image, FileArchive, FileCode, File 
+  Loader2, AlertCircle, Upload, X, FileText, Video, Image, FileArchive, FileCode, File,
+  Search, LayoutGrid, List, ChevronLeft, ChevronRight, Filter, ChevronDown
 } from "lucide-react";
 import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
@@ -37,11 +38,14 @@ const ICON_MAP = {
 };
 
 const GRADIENT_MAP = {
-  Programação:       "from-violet-600 to-violet-800",
-  Design:            "from-amber-500 to-orange-600",
-  Desafios:          "from-pink-600 to-rose-700",
-  Empreendedorismo:  "from-sky-600 to-blue-700",
+  Programação:       "bg-violet-600 shadow-violet-500/20",
+  Design:            "bg-amber-500 shadow-amber-500/20",
+  Desafios:          "bg-pink-600 shadow-pink-500/20",
+  Empreendedorismo:  "bg-sky-600 shadow-sky-500/20",
 };
+
+const TIPOS = ["Todos", "Tutorial", "Guia", "Desafio", "Template"];
+const STATUS_LIST = ["Todos", "Publicados", "Em revisão", "Rascunhos"];
 
 const EMPTY_FORM = { title: "", description: "", category: "Programação", type: "Tutorial" };
 
@@ -54,12 +58,24 @@ export default function MateriaisPage() {
   const [categoria, setCategoria]   = useState("Todos");
   const [modalOpen, setModalOpen]   = useState(false);
   const [editingId, setEditingId]   = useState(null);
+  const [viewMaterial, setViewMaterial] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
   const [form, setForm]             = useState(EMPTY_FORM);
-  const [selectedFiles, setSelectedFiles] = useState([]); // FileList equivalent
+  const [selectedFiles, setSelectedFiles] = useState([]); 
   const [saving, setSaving]         = useState(false);
   const [deleting, setDeleting]     = useState(false);
   const [formError, setFormError]   = useState("");
+  
+  // Novos estados para filtros e UI
+  const [search, setSearch]         = useState("");
+  const [typeFilter, setTypeFilter] = useState("Todos");
+  const [statusFilter, setStatusFilter] = useState("Todos");
+  const [viewMode, setViewMode]     = useState("grid"); // grid | list
+  const [sortBy, setSortBy]         = useState("recent");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+
+  const [showFilters, setShowFilters] = useState(false);
   const fileInputRef = useRef(null);
 
   const fetchMaterials = useCallback(async () => {
@@ -113,7 +129,6 @@ export default function MateriaisPage() {
     setSaving(true);
     try {
       if (editingId) {
-        // Edição: atualiza apenas metadados (PUT com JSON)
         const res = await apiFetch(`/api/materials/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -135,7 +150,6 @@ export default function MateriaisPage() {
           }
         }
       } else {
-        // Criação: multipart com arquivos
         const fd = new FormData();
         fd.append("title", form.title);
         fd.append("description", form.description);
@@ -152,7 +166,7 @@ export default function MateriaisPage() {
       }
 
       await fetchMaterials();
-      setSelectedFiles([]); // Limpa arquivos selecionados
+      setSelectedFiles([]); 
       setModalOpen(false);
     } catch (err) {
       setFormError(err.message);
@@ -179,150 +193,311 @@ export default function MateriaisPage() {
     }
   };
 
-  const handleDeleteFile = async (materialId, fileId) => {
-    await apiFetch(`/api/materials/${materialId}/files/${fileId}`, { method: "DELETE" });
-    await fetchMaterials();
+  // Lógica de Filtragem e Ordenação
+  const filtered = materials.filter((m) => {
+    const matchesSearch = !search || m.title.toLowerCase().includes(search.toLowerCase()) || m.description?.toLowerCase().includes(search.toLowerCase());
+    const matchesCat    = categoria === "Todos" || m.category === categoria;
+    const matchesType   = typeFilter === "Todos" || m.type === typeFilter;
+    // Status Filter (mocked or as proxy)
+    if (statusFilter === "Publicados") return matchesSearch && matchesCat && matchesType;
+    if (statusFilter === "Em revisão" || statusFilter === "Rascunhos") return false; // Mock zero for these
+    return matchesSearch && matchesCat && matchesType;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "recent") return new Date(b.createdAt) - new Date(a.createdAt);
+    if (sortBy === "oldest") return new Date(a.createdAt) - new Date(b.createdAt);
+    if (sortBy === "az")     return a.title.localeCompare(b.title);
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sorted.length / itemsPerPage);
+  const currentItems = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const counts = {
+    total: materials.length,
+    publicados: materials.length,
+    revisao: 0,
+    rascunhos: 0
   };
 
-  const filtered = categoria === "Todos"
-    ? materials
-    : materials.filter((m) => m.category === categoria);
-
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Materiais de Apoio</h2>
-          <p className="text-slate-400 text-sm mt-0.5">Conteúdos, guias e desafios para o programa.</p>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Materiais de Apoio</h2>
+          <p className="text-slate-400 text-sm mt-1">Conteúdos, guias e desafios para o programa.</p>
         </div>
-        {canManage && (
-          <button onClick={openNew} className="btn-primary flex items-center gap-2 self-start sm:self-auto">
-            <Plus size={16} /> Novo Material
-          </button>
-        )}
-      </div>
+        <div className="flex items-center gap-3 self-start md:self-auto">
+          {/* View Toggle - Only on Desktop */}
+          <div className="hidden md:flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700 mr-1">
+            <button 
+              onClick={() => setViewMode("grid")}
+              className={`p-1.5 rounded-lg transition-all ${viewMode === "grid" ? "bg-violet-600 text-white shadow-lg shadow-violet-500/20" : "text-slate-500 hover:text-slate-300"}`}
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button 
+              onClick={() => setViewMode("list")}
+              className={`p-1.5 rounded-lg transition-all ${viewMode === "list" ? "bg-violet-600 text-white shadow-lg shadow-violet-500/20" : "text-slate-500 hover:text-slate-300"}`}
+            >
+              <List size={16} />
+            </button>
+          </div>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-2">
-        {CATEGORIAS.map((cat) => (
-          <button key={cat} onClick={() => setCategoria(cat)}
-            className={[
-              "px-4 py-1.5 rounded-full text-sm font-medium border transition-all duration-150",
-              categoria === cat
-                ? "bg-violet-600/25 text-violet-300 border-violet-500/50"
-                : "bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-200",
-            ].join(" ")}>
-            {cat}
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border
+              ${showFilters 
+                ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/20" 
+                : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white"}`}
+          >
+            <Filter size={16} /> {showFilters ? "Ocultar Filtros" : "Filtrar"}
           </button>
-        ))}
-      </div>
-
-      {/* Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="card animate-pulse space-y-3">
-              <div className="w-11 h-11 rounded-xl bg-slate-800" />
-              <div className="w-3/4 h-4 bg-slate-800 rounded" />
-              <div className="w-full h-3 bg-slate-800 rounded" />
-            </div>
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="card text-center py-12">
-          <p className="text-slate-500 text-sm">
-            {materials.length === 0 ? "Nenhum material publicado ainda." : "Nenhum material nesta categoria."}
-          </p>
-          {materials.length === 0 && canManage && (
-            <button onClick={openNew} className="btn-primary mt-4 inline-flex items-center gap-2">
-              <Plus size={15} /> Adicionar primeiro material
+          {canManage && (
+            <button onClick={openNew} className="btn-primary px-5 py-2.5 flex items-center gap-2 shadow-lg shadow-violet-500/20">
+              <Plus size={18} /> Novo Material
             </button>
           )}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-          {filtered.map((m) => {
+      </div>
+
+      {/* Advanced Filters Card - Collapsible */}
+      {showFilters && (
+        <div className="card space-y-5 !p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div className="md:col-span-5 relative group">
+              <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-violet-400 transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Buscar por título, assunto ou palavra-chave..." 
+                className="input-field pl-11 !py-3"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+              />
+            </div>
+            
+            <div className="md:col-span-3 relative">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                <BookOpen size={16} />
+              </div>
+              <select 
+                className="input-field pl-10 appearance-none !py-3"
+                value={categoria}
+                onChange={(e) => { setCategoria(e.target.value); setCurrentPage(1); }}
+              >
+                {CATEGORIAS.map(c => <option key={c} value={c}>{c === "Todos" ? "Todas as categorias" : c}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            </div>
+
+            <div className="md:col-span-3 relative">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                <LayoutGrid size={16} />
+              </div>
+              <select 
+                className="input-field pl-10 appearance-none !py-3"
+                value={typeFilter}
+                onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}
+              >
+                {TIPOS.map(t => <option key={t} value={t}>{t === "Todos" ? "Todos os tipos" : t}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            </div>
+
+            <div className="md:col-span-1">
+              <button 
+                onClick={() => { setSearch(""); setCategoria("Todos"); setTypeFilter("Todos"); setStatusFilter("Todos"); }}
+                className="w-full h-full flex items-center justify-center text-slate-400 hover:text-white bg-slate-800 rounded-xl hover:bg-slate-700 transition-all border border-slate-700"
+                title="Limpar filtros"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-800/50">
+            <div className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-slate-800">
+              {[
+                { id: "Todos", label: "Todos", count: counts.total },
+                { id: "Publicados", label: "Publicados", count: counts.publicados },
+                { id: "Em revisão", label: "Em revisão", count: counts.revisao },
+                { id: "Rascunhos", label: "Rascunhos", count: counts.rascunhos },
+              ].map((tab) => (
+                <button 
+                  key={tab.id}
+                  onClick={() => setStatusFilter(tab.id)}
+                  className={`px-4 py-2 rounded-lg text-[11px] font-bold transition-all flex items-center gap-2
+                    ${statusFilter === tab.id 
+                      ? "bg-slate-800 text-white shadow-sm" 
+                      : "text-slate-500 hover:text-slate-300"}`}
+                >
+                  {tab.label}
+                  <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${statusFilter === tab.id ? "bg-violet-600 text-white" : "bg-slate-800 text-slate-500"}`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mr-1">Ordenar por</span>
+              <div className="relative">
+                <select 
+                  className="bg-slate-900/50 border border-slate-800 text-slate-300 text-[11px] font-bold py-2 pl-4 pr-10 rounded-xl appearance-none hover:border-slate-700 transition-all outline-none"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  <option value="recent">Mais recentes</option>
+                  <option value="oldest">Mais antigos</option>
+                  <option value="az">A - Z</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Grid / List Content */}
+      <div className="flex-1 flex flex-col min-h-[400px]">
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 flex-1">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="card h-40 animate-pulse bg-slate-800/50 rounded-2xl" />
+            ))}
+          </div>
+        ) : currentItems.length === 0 ? (
+          <div className="card text-center py-20 bg-slate-900/20 flex-1 flex flex-col justify-center">
+            <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-6 text-slate-600">
+              <FileText size={40} />
+            </div>
+            <h3 className="text-white font-semibold text-lg">Nenhum material encontrado</h3>
+            <p className="text-slate-500 text-sm mt-2 max-w-xs mx-auto">Tente ajustar seus filtros ou termos de pesquisa para encontrar o que procura.</p>
+            <button onClick={() => { setSearch(""); setCategoria("Todos"); setTypeFilter("Todos"); }} className="btn-primary mt-8 inline-flex px-6 self-center">
+              Limpar Filtros
+            </button>
+          </div>
+        ) : (
+          <div className={`flex-1 ${viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "flex flex-col gap-3"}`}>
+            {currentItems.map((m) => {
             const Icon     = ICON_MAP[m.category]   ?? BookOpen;
-            const gradient = GRADIENT_MAP[m.category] ?? "from-slate-600 to-slate-700";
+            const gradient = GRADIENT_MAP[m.category] ?? "bg-slate-700 shadow-slate-500/20";
             const allFiles = m.files ?? [];
+            
             return (
               <div key={m.id}
-                className="card hover:border-slate-600 transition-all duration-200 flex flex-col gap-4">
-                <div className="flex items-start justify-between">
-                  <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradient}
-                                  flex items-center justify-center shadow-lg flex-shrink-0`}>
-                    <Icon size={20} className="text-white" />
+                onClick={() => setViewMaterial(m)}
+                className={`card hover:border-violet-500/40 transition-all duration-300 flex cursor-pointer group relative overflow-hidden p-0
+                           ${viewMode === "grid" ? "flex-col" : "flex-row items-center min-h-[72px]"}`}>
+                
+                <div className="absolute inset-0 bg-gradient-to-tr from-violet-500/0 via-violet-500/0 to-violet-500/[0.03] pointer-events-none" />
+
+                {/* Mobile & Grid Header/Side */}
+                <div className={`${viewMode === "grid" ? "p-4 pb-0" : "w-14 shrink-0 flex items-center justify-center border-r border-slate-800 bg-slate-900/50"}`}>
+                  <div className={`${viewMode === "grid" ? "w-10 h-10 rounded-xl" : "w-9 h-9 rounded-lg"} ${gradient} flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:scale-110`}>
+                    <Icon size={viewMode === "grid" ? 18 : 16} className="text-white" />
                   </div>
-                  {canManage && (
-                    <div className="flex gap-1">
-                      <button onClick={() => openEdit(m)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center
-                                   text-slate-500 hover:bg-slate-700 hover:text-slate-200 transition-all">
-                        <Pencil size={13} />
-                      </button>
-                      <button onClick={() => setConfirmDel({ id: m.id, name: m.title })}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center
-                                   text-slate-500 hover:bg-red-500/15 hover:text-red-400 transition-all">
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  )}
                 </div>
 
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="text-white font-semibold text-sm leading-snug">{m.title}</h3>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border flex-shrink-0
-                                      ${TIPO_STYLE[m.type] ?? TIPO_STYLE.Guia}`}>
-                      {m.type}
-                    </span>
-                  </div>
-                  <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">
-                    {m.description ?? "Sem descrição."}
-                  </p>
-                </div>
-
-                {/* Arquivos */}
-                <div className="flex flex-col gap-1.5 pt-3 border-t border-slate-800">
-                  {allFiles.length === 0 && !m.fileUrl && (
-                    <span className="text-slate-600 text-xs italic">Sem arquivos</span>
-                  )}
-                  {/* Legacy fileUrl */}
-                  {m.fileUrl && allFiles.length === 0 && (
-                    <div className="flex items-center gap-2">
-                      <a href={m.fileUrl} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-violet-400 hover:text-violet-300 text-sm font-medium transition-colors">
-                        <ExternalLink size={13} /> Acessar
-                      </a>
-                      <a href={m.fileUrl} download
-                        className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors ml-auto">
-                        <Download size={13} /> Baixar
-                      </a>
-                    </div>
-                  )}
-                  {/* MaterialFile list */}
-                  {allFiles.map((f) => (
-                    <div key={f.id} className="flex items-center gap-2 group">
-                      <a href={f.fileUrl} target="_blank" rel="noopener noreferrer"
-                        className="flex-1 min-w-0 text-xs text-violet-400 hover:text-violet-300 truncate flex items-center gap-1.5 transition-colors">
-                        {getFileIcon(f.fileName)}
-                        <span className="truncate">{f.fileName}</span>
-                      </a>
-                      <a href={f.fileUrl} download className="text-slate-600 hover:text-slate-300 transition-colors flex-shrink-0">
-                        <Download size={12} />
-                      </a>
-                      {canManage && (
-                        <button onClick={() => handleDeleteFile(m.id, f.id)}
-                          className="text-slate-700 hover:text-red-400 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100">
-                          <X size={12} />
-                        </button>
+                <div className={`flex-1 p-4 ${viewMode === "list" ? "py-3 flex flex-row items-center justify-between" : "flex flex-col h-full"}`}>
+                  <div className="min-w-0 flex-1">
+                    <div className={`flex items-start justify-between gap-2 ${viewMode === "grid" ? "mb-1" : ""}`}>
+                      <h3 className="text-white font-bold text-sm md:text-sm group-hover:text-violet-300 transition-colors leading-tight truncate">{m.title}</h3>
+                      {viewMode === "grid" && (
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border shadow-sm tracking-tight shrink-0
+                                          ${TIPO_STYLE[m.type] ?? TIPO_STYLE.Guia}`}>
+                          {m.type?.toUpperCase()}
+                        </span>
                       )}
                     </div>
-                  ))}
+                    
+                    {viewMode === "grid" ? (
+                      <p className="text-slate-400 text-xs leading-relaxed line-clamp-2 min-h-[32px] mt-1">
+                        {m.description ?? "Sem descrição detalhada disponível."}
+                      </p>
+                    ) : (
+                      <div className="flex items-center gap-3 mt-0.5">
+                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded border tracking-tight
+                                          ${TIPO_STYLE[m.type] ?? TIPO_STYLE.Guia}`}>
+                          {m.type?.toUpperCase()}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium">{m.category}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions & Meta */}
+                  <div className={`${viewMode === "grid" ? "pt-3 mt-auto border-t border-slate-800 flex items-center justify-between" : "flex items-center gap-4 ml-4"}`}>
+                    <div className={`flex items-center gap-3 ${viewMode === "list" ? "hidden md:flex" : ""}`}>
+                      <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                        <File size={11} className="text-slate-600" />
+                        {allFiles.length}
+                      </span>
+                      <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                        <FileText size={11} className="text-slate-600" />
+                        {new Date(m.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      {canManage && (
+                        <div className={`flex gap-1 ${viewMode === "grid" ? "mr-2" : ""}`}>
+                          <button onClick={() => openEdit(m)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-700 hover:text-white transition-all">
+                            <Pencil size={12} />
+                          </button>
+                          <button onClick={() => setConfirmDel({ id: m.id, name: m.title })}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      )}
+                      <div className="text-violet-400 p-1.5 rounded-lg bg-violet-500/10 md:bg-transparent">
+                        <ExternalLink size={14} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
           })}
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-1.5 pt-6">
+          <button 
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(p => p - 1)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-800 text-slate-400 hover:bg-slate-800 disabled:opacity-30 transition-all"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          
+          {[...Array(totalPages)].map((_, i) => (
+            <button 
+              key={i}
+              onClick={() => setCurrentPage(i + 1)}
+              className={`w-8 h-8 rounded-lg text-xs font-bold transition-all border
+                ${currentPage === i + 1 
+                  ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/20" 
+                  : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"}`}
+            >
+              {i + 1}
+            </button>
+          ))}
+
+          <button 
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(p => p + 1)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-800 text-slate-400 hover:bg-slate-800 disabled:opacity-30 transition-all"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
       )}
 
@@ -360,7 +535,6 @@ export default function MateriaisPage() {
             </div>
           </div>
 
-          {/* Seleção de múltiplos arquivos */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">
               Arquivos {editingId ? "(novos arquivos serão adicionados)" : ""}
@@ -403,6 +577,49 @@ export default function MateriaisPage() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* ─── Modal: Ver Conteúdo ────────────────────────────────────────────────── */}
+      <Modal isOpen={!!viewMaterial} onClose={() => setViewMaterial(null)}
+             title={viewMaterial?.title ?? "Material"} size="md">
+        {viewMaterial && (
+          <div className="space-y-4">
+            {viewMaterial.description && (
+              <p className="text-slate-400 text-sm leading-relaxed">{viewMaterial.description}</p>
+            )}
+
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Arquivos</p>
+
+              {(viewMaterial.files ?? []).length === 0 && !viewMaterial.fileUrl && (
+                <p className="text-slate-600 text-sm italic py-4 text-center">Nenhum arquivo anexado.</p>
+              )}
+
+              {(viewMaterial.files ?? []).map((f) => (
+                <div key={f.id}
+                  className="flex items-center gap-3 bg-slate-800 rounded-xl px-4 py-3 border border-slate-700
+                             hover:border-slate-600 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0 text-slate-400">
+                    {getFileIcon(f.fileName)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-200 truncate">{f.fileName}</p>
+                  </div>
+                  <a href={f.fileUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300
+                               font-medium transition-colors px-2.5 py-1.5 rounded-lg hover:bg-violet-500/10">
+                    <ExternalLink size={13} /> Abrir
+                  </a>
+                  <a href={f.fileUrl} download
+                    className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200
+                               font-medium transition-colors px-2.5 py-1.5 rounded-lg hover:bg-slate-700">
+                    <Download size={13} /> Baixar
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ─── Modal: Confirmar Exclusão ─────────────────────────────────────────── */}
