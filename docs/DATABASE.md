@@ -18,6 +18,20 @@ O sistema utiliza o **PostgreSQL 16** como motor principal, potencializado pela 
 
 ---
 
+## 🔌 Como Conectar (DBeaver / pgAdmin)
+
+Para visualizar os dados e a estrutura diretamente, você pode usar o [DBeaver (Download)](https://dbeaver.io/download/).
+
+**Dados de Acesso:**
+*   **Host**: `localhost`
+*   **Porta**: `5432`
+*   **Banco de Dados**: `tutoriatech`
+*   **Usuário**: `tutoriatech_user`
+*   **Senha**: `tutoriatech_pass`
+*   **URL JDBC**: `jdbc:postgresql://localhost:5432/tutoriatech`
+
+---
+
 ## 📊 Diagrama Entidade-Relacionamento (ER)
 
 Abaixo, a representação visual das conexões entre as principais entidades do sistema.
