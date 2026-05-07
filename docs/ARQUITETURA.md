@@ -9,12 +9,11 @@ Visão técnica completa da arquitetura da plataforma **Tutoria Tech**, uma apli
 - [Visão Geral](#visão-geral)
 - [Stack Tecnológica](#stack-tecnológica)
 - [Arquitetura em Camadas](#arquitetura-em-camadas)
-- [Compose Files e Separação de Serviços](#compose-files-e-separação-de-serviços)
-- [Comunicação entre Serviços](#comunicação-entre-serviços)
 - [Fluxo de Autenticação](#fluxo-de-autenticação)
 - [Fluxo da IA Rose (RAG)](#fluxo-da-ia-rose-rag)
 - [Armazenamento de Arquivos](#armazenamento-de-arquivos)
 - [Modelo de Dados](#modelo-de-dados)
+- [Documentação Detalhada do Banco de Dados](DATABASE.md)
 - [Controle de Acesso (RBAC)](#controle-de-acesso-rbac)
 - [Estrutura de Diretórios](#estrutura-de-diretórios)
 
@@ -28,16 +27,14 @@ O Tutoria Tech é uma aplicação **full-stack containerizada**, dividida em mic
 ┌─────────────────────────────────────────────────────────────────────┐
 │                       USUÁRIO (navegador)                           │
 └──────────────────────────┬──────────────────────────────────────────┘
-                           │ HTTP
-          ┌────────────────┴────────────────┐
-          │                                 │
-    (localhost:5173)              (ngrok — opcional)
-    Frontend React                URL pública temporária
-          │
-          │ REST API
-          ▼
-    (localhost:3001)
-    Backend Fastify
+           │ HTTP (Somente Frontend exposto)
+           ▼
+    (localhost:5173)
+    Frontend React
+           │
+           │ REST API (Interno Docker)
+           ▼
+    Backend Fastify (Porta 3001)
     ┌──────────────────────────────────────────────┐
     │  Autenticação JWT                            │
     │  Rotas por perfil (Admin/Mentora/Aluna)      │
@@ -47,7 +44,7 @@ O Tutoria Tech é uma aplicação **full-stack containerizada**, dividida em mic
            ▼               ▼              ▼
      PostgreSQL          MinIO       Python IA
      + pgvector       (S3-like)     (FastAPI)
-     (localhost:5432)  arquivos      Rose / RAG
+     (Porta 5432)     (Porta 9000)   Rose / RAG
 ```
 
 ---
@@ -107,12 +104,13 @@ O projeto é organizado em **3 camadas independentes**, cada uma com seu própri
 │  └──────────────────────────────────────────────────────┘    │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐    │
-│  │  docker-compose.ngrok.yml  — TÚNEL (OPCIONAL)        │    │
+│  │  docker-compose.app.yml  — APLICAÇÃO                   │    │
 │  │                                                      │    │
-│  │  ┌──────────────────────────────────┐               │    │
-│  │  │   ngrok  →  aponta p/ frontend   │               │    │
-│  │  │   porta: 4040 ★ (dashboard)      │               │    │
-│  │  └──────────────────────────────────┘               │    │
+│  │  ┌───────────────┐   ┌───────────────┐              │    │
+│  │  │   Backend     │   │   Frontend    │              │    │
+│  │  │   (Fastify)   │   │   (Vite)      │              │    │
+│  │  │   porta: 3001 │   │   porta: 5173★│              │    │
+│  │  └───────────────┘   └───────────────┘              │    │
 │  └──────────────────────────────────────────────────────┘    │
 │                                                              │
 │  ★ = Porta exposta ao host (localhost)                       │
@@ -126,7 +124,6 @@ O projeto é organizado em **3 camadas independentes**, cada uma com seu própri
 | `docker-compose.infra.yml` | PostgreSQL, MinIO | **Obrigatório** — primeiro a subir |
 | `docker-compose.app.yml` | Backend, Frontend | **Obrigatório** — segundo a subir |
 | `docker-compose.ia.yml` | Python IA (FastAPI) | Opcional — habilita o chat com a Rose |
-| `docker-compose.ngrok.yml` | ngrok | Opcional — exposição pública |
 
 ---
 
@@ -154,10 +151,8 @@ Python IA (FastAPI)
 | Container | Porta Host | Protocolo | Uso |
 | :--- | :--- | :--- | :--- |
 | `tutoria_frontend` | 5173 | HTTP | Acesso pelo navegador |
-| `tutoria_backend` | 3001 | HTTP | API REST |
-| `tutoria_backend` | 5555 | HTTP | Prisma Studio |
-| `tutoria_db` | 5432 | TCP | Clientes SQL externos |
-| `tutoria_ngrok` | 4040 | HTTP | Dashboard ngrok (opcional) |
+| `tutoria_backend` | 3001 | HTTP | API REST (Opcional p/ Debug) |
+| `tutoria_db` | 5432 | TCP | Clientes SQL (Opcional p/ Debug) |
 
 ---
 
@@ -245,34 +240,36 @@ MinIO (minio:9000)
 
 ## Modelo de Dados
 
-Principais entidades gerenciadas pelo Prisma (PostgreSQL):
+O modelo de dados é gerenciado pelo **Prisma ORM** e implementado no **PostgreSQL**. Abaixo, um resumo simplificado das entidades principais.
+
+> [!TIP]
+> Para uma visão completa de todos os campos, tipos e diagramas ER técnicos, consulte a **[Documentação do Banco de Dados (DATABASE.md)](DATABASE.md)**.
 
 ```
-User
-├── id, name, email, password (hash)
-├── role: ADMIN | MENTORA | ALUNA
-└── tutoraId? (FK → Tutoria)
+User (users)
+├── id, name, email, password (hash), role
+└── Relacionamentos: mentor de Team, aluna de Team, presenças em Schedule
 
-Tutoria (Equipe)
-├── id, nome, status (IDEACAO → CONCLUIDO)
-├── mentora (FK → User)
-├── alunas[] (FK → User)
-└── links: whatsapp, telegram
+Team (teams)
+├── id, nome, status, accessCode
+├── mentorId (FK → User)
+└── Relacionamentos: lista de alunas (Users), registros de StudentProgress
 
-Material
-├── id, titulo, tipo, url (MinIO)
-├── uploadedBy (FK → User)
-└── vetorizado: boolean (se foi indexado no pgvector)
+Material (materials)
+├── id, titulo, descricao, categoria, tipo
+└── Relacionamentos: lista de MaterialFile (arquivos no MinIO)
 
-Evento
-├── id, titulo, data, tipo
-├── status: AGENDADO | REALIZADO | CANCELADO
-└── presencas[] (FK → User)
+Schedule (schedules)
+├── id, titulo, data, tipo, status, presencas (count)
+└── Relacionamentos: lista de Attendance
 
-Embedding (pgvector)
-├── id, materialId (FK → Material)
-├── chunk: text
-└── embedding: vector(768)   ← busca semântica
+Knowledge (knowledge_documents & chunks)
+├── Document: filename
+└── Chunk: content, embedding (vector 768) ← Busca Semântica
+
+Configurações (system_settings & system_options)
+├── system_settings: GEMINI_API_KEY, ROSE_PROMPT
+└── system_options: Opções dinâmicas de categorias e status
 ```
 
 ---
