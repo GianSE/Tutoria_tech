@@ -4,8 +4,8 @@
 
 ## Pré-requisitos
 
-- 🐳 **Docker Desktop** (com WSL 2): https://docs.docker.com/desktop/setup/install/windows-install/
-- 🔧 **Git**: https://git-scm.com/downloads/win
+- 🐳 **Docker Desktop** (com WSL 2): <a href="https://docs.docker.com/desktop/setup/install/windows-install/" target="_blank">docs.docker.com</a>
+- 🔧 **Git**: <a href="https://git-scm.com/downloads/win" target="_blank">git-scm.com</a>
 
 ---
 
@@ -56,8 +56,8 @@ O seed cria **41 usuários** (1 admin, 10 mentoras, 30 alunas), 5 equipes, 7 mat
 
 | URL | Descrição |
 | :--- | :--- |
-| http://localhost:5173 | Frontend (interface principal) |
-| http://localhost:9001 | MinIO Console (usuário: `minioadmin` / senha: `minioadmin`) |
+| <a href="http://localhost:5173" target="_blank">localhost:5173</a> | Frontend (interface principal) |
+| <a href="http://localhost:9001" target="_blank">localhost:9001</a> | MinIO Console (usuário: `minioadmin` / senha: `minioadmin`) |
 | `localhost:5432` | PostgreSQL (DBeaver, pgAdmin, etc.) |
 
 > Backend e IA comunicam-se exclusivamente pela rede interna Docker.
@@ -79,7 +79,7 @@ O seed cria **41 usuários** (1 admin, 10 mentoras, 30 alunas), 5 equipes, 7 mat
 A `GEMINI_API_KEY` não fica em nenhum `.env` — é configurada pelo Admin dentro da aplicação:
 
 1. Login como Admin → **Configurações**
-2. Cole a chave obtida em https://aistudio.google.com/apikey
+2. Cole a chave obtida em <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>
 
 ### Container
 

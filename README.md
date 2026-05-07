@@ -46,7 +46,7 @@ docker compose -f docker-compose.app.yml up -d --build
 docker compose -f docker-compose.ia.yml up -d --build
 ```
 
-Acesse em: **http://localhost:5173**
+Acesse em: <a href="http://localhost:5173" target="_blank">http://localhost:5173</a>
 
 Login de teste: `admin@projeto.com` / `admin`
 
