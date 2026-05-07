@@ -1,11 +1,13 @@
 # ✨ Tutoria Tech — Plataforma de Mentoria e Aprendizagem
 
-> **Sistema Web para Gestão do Projeto Meninas Digitais – UTFPR-CP**
+> **🎓 Sistema Web para Gestão do Projeto Meninas Digitais – UTFPR-CP**
 >
-> Gian Pedro Rodrigues — RA: 2503638  
-> João Marcelo Alves Müller — RA: 2525461  
-> João Victor da Cruz Silvestre — RA: 2144263  
-> Luiz Arthur Chagas Oliveira — RA: 1905058
+> | Integrante | RA |
+> | :--- | :---: |
+> | **Gian Pedro Rodrigues** | `2503638` |
+> | **João Marcelo Alves Müller** | `2525461` |
+> | **João Victor da Cruz Silvestre** | `2144263` |
+> | **Luiz Arthur Chagas Oliveira** | `1905058` |
 
 Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento de alunas, gestão de equipes, agenda de encontros, materiais de apoio e a **Rose** — assistente de IA integrada.
 
@@ -46,7 +48,7 @@ docker compose -f docker-compose.app.yml up -d --build
 docker compose -f docker-compose.ia.yml up -d --build
 ```
 
-Acesse em: <a href="http://localhost:5173" target="_blank">http://localhost:5173</a>
+Acesse em: **http://localhost:5173**
 
 Login de teste: `admin@projeto.com` / `admin`
 
