@@ -79,7 +79,8 @@ O seed cria **41 usuários** (1 admin, 10 mentoras, 30 alunas), 5 equipes, 7 mat
 A `GEMINI_API_KEY` não fica em nenhum `.env` — é configurada pelo Admin dentro da aplicação:
 
 1. Login como Admin → **Configurações**
-2. Cole a chave obtida em https://aistudio.google.com/apikey
+2. Obtenha sua chave no [Google AI Studio](https://aistudio.google.com/apikey)
+3. Cole a chave no campo **Gemini API Key**
 
 ### Container
 

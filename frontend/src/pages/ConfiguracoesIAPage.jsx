@@ -14,6 +14,7 @@ import {
   Upload,
   X,
   Search,
+  Info,
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import Modal from "../components/Modal";
@@ -42,6 +43,7 @@ export default function ConfiguracoesIAPage() {
   const [viewingDoc, setViewingDoc] = useState(null);
   const [docChunks, setDocChunks] = useState([]);
   const [loadingChunks, setLoadingChunks] = useState(false);
+  const [showApiKeyHelp, setShowApiKeyHelp] = useState(false);
 
 
   const [success, setSuccess] = useState("");
@@ -387,7 +389,17 @@ export default function ConfiguracoesIAPage() {
 
       <form onSubmit={handleSave} className="card space-y-5">
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">Gemini API Key</label>
+          <div className="flex items-center gap-2 mb-1.5">
+            <label className="block text-sm font-medium text-slate-300">Gemini API Key</label>
+            <button 
+              type="button"
+              onClick={() => setShowApiKeyHelp(true)}
+              className="text-slate-500 hover:text-violet-400 transition-colors"
+              title="Como obter a chave?"
+            >
+              <Info size={14} />
+            </button>
+          </div>
           <div className="relative">
             <input
               type={showApiKey ? "text" : "password"}
@@ -655,6 +667,42 @@ export default function ConfiguracoesIAPage() {
             ))}
           </div>
         )}
+      </Modal>
+      
+      {/* ─── Modal: Ajuda com a API Key ────────────────────────────────────────── */}
+      <Modal
+        isOpen={showApiKeyHelp}
+        onClose={() => setShowApiKeyHelp(false)}
+        title="Como obter sua Gemini API Key"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-300 text-sm leading-relaxed">
+            Para que a assistente Rose funcione, você precisa de uma chave de API do Google Gemini.
+          </p>
+          
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+            <ol className="list-decimal list-inside text-sm text-slate-400 space-y-2">
+              <li>Acesse o <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-violet-400 hover:underline">Google AI Studio</a>.</li>
+              <li>Faça login com sua conta Google.</li>
+              <li>Clique em <span className="text-slate-200">"Get API key"</span> no menu lateral.</li>
+              <li>Clique em <span className="text-slate-200">"Create API key in new project"</span>.</li>
+              <li>Copie a chave gerada e cole no campo ao lado.</li>
+            </ol>
+          </div>
+
+          <div className="flex justify-center pt-2">
+            <a 
+              href="https://aistudio.google.com/apikey" 
+              target="_blank" 
+              rel="noreferrer"
+              className="btn-primary w-full text-center py-2.5 flex items-center justify-center gap-2"
+            >
+              <Bot size={16} />
+              Ir para Google AI Studio
+            </a>
+          </div>
+        </div>
       </Modal>
 
     </div>

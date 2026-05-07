@@ -39,9 +39,19 @@ Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento
 
 ---
 
+## 📋 Pré-requisitos
+
+- **Docker** & **Git**
+
+---
+
 ## ⚡ Início Rápido
 
 ```powershell
+# 0º — Clonar o repositório
+git clone https://github.com/GianSE/Tutoria_tech
+cd Tutoria_tech
+
 # 1º — infraestrutura (banco + storage)
 docker compose -f docker-compose.infra.yml up -d
 
