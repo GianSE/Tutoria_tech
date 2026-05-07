@@ -168,20 +168,6 @@ export default function NotificationBell() {
             )}
           </div>
 
-          {/* Footer */}
-          {activities.length > 0 && (
-            <div className="px-4 py-3 border-t border-slate-800">
-              <a
-                href="/dashboard"
-                className="flex items-center justify-center gap-1.5 text-xs text-slate-500
-                           hover:text-violet-400 transition-colors font-medium"
-                onClick={() => setOpen(false)}
-              >
-                Ver todas no Dashboard
-                <ChevronRight size={12} />
-              </a>
-            </div>
-          )}
         </div>
       )}
     </div>
