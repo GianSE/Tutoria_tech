@@ -16,10 +16,6 @@ import {
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 
-const DEFAULT_SYSTEM_PROMPT = `Voce e Rose, a assistente IA oficial do Tutoria Tech.
-Seu papel e apoiar administradoras, mentoras e alunas com respostas claras, empaticas e objetivas.
-Priorize linguagem simples, incentivo ao aprendizado e orientacoes praticas de tecnologia.
-Quando necessario, explique passo a passo e evite suposicoes sem contexto.`;
 
 export default function ConfiguracoesIAPage() {
   const fileInputRef = useRef(null);
@@ -150,10 +146,18 @@ export default function ConfiguracoesIAPage() {
     }
   }
 
-  function handleRestoreDefaultPrompt() {
-    setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
-    setSuccess("Prompt padrao restaurado no formulario. Clique em Salvar Configuracoes.");
-    setError("");
+  async function handleRestoreDefaultPrompt() {
+    try {
+      const res = await apiFetch("/api/settings/ai/default-prompt");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Erro ao buscar prompt padrão.");
+
+      setSystemPrompt(data.prompt);
+      setSuccess("Prompt padrão restaurado do arquivo rose-context.md. Clique em Salvar para aplicar.");
+      setError("");
+    } catch (err) {
+      setError(err.message || "Falha ao restaurar prompt padrão.");
+    }
   }
 
   function handleOpenUpload() {

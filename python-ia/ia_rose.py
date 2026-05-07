@@ -78,3 +78,15 @@ def chat(req: ChatRequest):
         return {"answer": response.text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+class TestKeyRequest(BaseModel):
+    gemini_api_key: str
+
+@router.post("/test_key")
+def test_key(req: TestKeyRequest):
+    try:
+        genai.configure(api_key=req.gemini_api_key)
+        # Tenta listar modelos (operação rápida e barata) para validar a chave
+        genai.list_models()
+        return {"message": "Chave API validada com sucesso!"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Chave API inválida ou erro de conexão: {str(e)}")

@@ -1,5 +1,11 @@
 import prisma from "../lib/prisma.js";
 import { requireRole } from "../lib/requireRole.js";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 
 /**
  * Rotas de Configurações do Sistema (System Options)
@@ -62,4 +68,111 @@ export async function settingsRoutes(app) {
     await prisma.systemOption.delete({ where: { id } });
     return reply.send({ message: "Opção removida com sucesso." });
   });
+
+  // ── AI SETTINGS ─────────────────────────────────────────────────────────────
+
+  // GET /ai — Busca as configurações de IA (Gemini Key e Rose Prompt)
+  app.get("/ai", { onRequest: [adminOnly(app)] }, async (_req, reply) => {
+    const settings = await prisma.systemSetting.findMany({
+      where: { key: { in: ["GEMINI_API_KEY", "ROSE_SYSTEM_PROMPT"] } }
+    });
+
+    const result = {
+      apiKey: settings.find(s => s.key === "GEMINI_API_KEY")?.value || "",
+      systemPrompt: settings.find(s => s.key === "ROSE_SYSTEM_PROMPT")?.value || ""
+    };
+
+    return reply.send(result);
+  });
+
+  // PUT /ai — Salva as configurações de IA
+  app.put("/ai", { onRequest: [adminOnly(app)] }, async (req, reply) => {
+    const { apiKey, systemPrompt } = req.body;
+
+    if (apiKey !== undefined) {
+      await prisma.systemSetting.upsert({
+        where: { key: "GEMINI_API_KEY" },
+        update: { value: apiKey },
+        create: { key: "GEMINI_API_KEY", value: apiKey }
+      });
+    }
+
+    if (systemPrompt !== undefined) {
+      await prisma.systemSetting.upsert({
+        where: { key: "ROSE_SYSTEM_PROMPT" },
+        update: { value: systemPrompt },
+        create: { key: "ROSE_SYSTEM_PROMPT", value: systemPrompt }
+      });
+    }
+
+    return reply.send({
+      message: "Configurações de IA salvas com sucesso.",
+      data: { apiKey, systemPrompt }
+    });
+  });
+
+  // GET /ai/default-prompt — Lê o prompt padrão do arquivo filesystem
+  app.get("/ai/default-prompt", { onRequest: [adminOnly(app)] }, async (_req, reply) => {
+    try {
+      const filePath = path.join(__dirname, "../docs/rose-context.md");
+      const content = await fs.readFile(filePath, "utf-8");
+      return reply.send({ prompt: content });
+    } catch (error) {
+      req.log.error(error);
+      return reply.status(500).send({ message: "Erro ao ler prompt padrão no servidor." });
+    }
+  });
+
+  // POST /ai/test — Testa a conexão com a IA usando a chave fornecida
+  app.post("/ai/test", { onRequest: [adminOnly(app)] }, async (req, reply) => {
+    const { apiKey } = req.body;
+    const pythonApiUrl = process.env.PYTHON_API_URL || "http://python-ia:8000";
+
+    try {
+      const response = await fetch(`${pythonApiUrl}/test_key`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gemini_api_key: apiKey })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return reply.status(response.status).send({ message: data.detail || "Falha ao validar a chave no Python IA." });
+      }
+
+      return reply.send({ message: "Conexão com Gemini validada com sucesso!" });
+    } catch (error) {
+      req.log.error(error);
+      return reply.status(500).send({ message: "Erro de comunicação com o serviço de IA." });
+    }
+  });
+
+  // ── KNOWLEDGE BASE ─────────────────────────────────────────────────────────
+
+  // GET /knowledge — Lista documentos da base de conhecimento
+  app.get("/knowledge", { onRequest: [adminOnly(app)] }, async (_req, reply) => {
+    const docs = await prisma.knowledgeDocument.findMany({
+      include: {
+        _count: { select: { chunks: true } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    // Mapeia para o formato que o frontend espera (se necessário)
+    const result = docs.map(d => ({
+      ...d,
+      chunksCount: d._count.chunks
+    }));
+
+    return reply.send(result);
+  });
+
+  // DELETE /knowledge/:id — Remove um documento
+  app.delete("/knowledge/:id", { onRequest: [adminOnly(app)] }, async (req, reply) => {
+    const id = Number(req.params.id);
+    await prisma.knowledgeDocument.delete({ where: { id } });
+    return reply.send({ message: "Documento removido da base de conhecimento." });
+  });
 }
+
