@@ -127,6 +127,16 @@ O projeto é organizado em **3 camadas independentes**, cada uma com seu própri
 
 ---
 
+### Mecanismo de Proxy (Vite)
+
+Para manter a segurança e evitar a exposição de múltiplas portas ao host (Windows), o sistema utiliza o **Vite Proxy**. 
+
+*   O navegador do usuário envia requisições de API para `http://localhost:5173/api`.
+*   O servidor de desenvolvimento do Vite intercepta essas chamadas e as redireciona internamente para `http://backend:3001`.
+*   Isso permite que o Backend permaneça "escondido" (usando apenas `expose` no Docker) e resolve problemas de CORS sem necessidade de um Nginx em ambiente de desenvolvimento.
+
+---
+
 ## Comunicação entre Serviços
 
 Todos os containers se comunicam pela rede interna `tutoria-network`. As chamadas usam o **nome do serviço** como hostname (resolução DNS interna do Docker).
