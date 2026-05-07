@@ -87,6 +87,8 @@ export default function DashboardPage() {
   const [showMaterialsModal, setShowMaterialsModal] = useState(false);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
   const [materialSearch, setMaterialSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -123,7 +125,9 @@ export default function DashboardPage() {
     }
   };
 
-  const handleShowTeams = async () => {
+  const handleShowTeams = async (status = "") => {
+    const finalStatus = typeof status === "string" ? status : "";
+    setFilterStatus(finalStatus);
     setShowTeamsModal(true);
     setLoadingTeams(true);
     try {
@@ -136,6 +140,7 @@ export default function DashboardPage() {
       setLoadingTeams(false);
     }
   };
+
 
   const handleShowMaterials = async () => {
     setShowMaterialsModal(true);
@@ -174,7 +179,7 @@ export default function DashboardPage() {
       icon: BookOpen,
       gradient: "from-pink-600 to-rose-700",
       glow: "shadow-pink-500/20",
-      onClick: handleShowTeams,
+      onClick: () => handleShowTeams(""),
     },
     {
       label: "Materiais Publicados",
@@ -367,7 +372,9 @@ export default function DashboardPage() {
                 const count = stats?.teamsPerStatus?.[key] ?? 0;
                 const pct = Math.round((count / (stats?.equipesAtivas || 1)) * 100);
                 return (
-                  <div key={key} className="relative flex items-center justify-between pl-8 group">
+                  <div key={key} 
+                    onClick={() => handleShowTeams(key)}
+                    className="relative flex items-center justify-between pl-8 group cursor-pointer hover:bg-slate-800/30 p-1.5 rounded-lg -ml-1.5 transition-colors">
                     {/* Dot */}
                     <div className={`absolute left-[5.5px] w-3 h-3 rounded-full ${color} shadow-[0_0_10px_rgba(0,0,0,0.5)] z-10 
                                     group-hover:scale-125 transition-transform duration-300`} />
@@ -486,8 +493,9 @@ export default function DashboardPage() {
       </Modal>
 
       {/* ─── Modal: Lista de Equipes ─────────────────────────────────────────── */}
-      <Modal isOpen={showTeamsModal} onClose={() => { setShowTeamsModal(false); setTeamSearch(""); }}
-        title="Relação de Equipes" size="md">
+      <Modal isOpen={showTeamsModal} onClose={() => { setShowTeamsModal(false); setTeamSearch(""); setFilterStatus(""); }}
+        title={filterStatus ? `Equipes em ${filterStatus.replace("_", " ")}` : "Relação de Equipes"} size="md">
+
         {loadingTeams ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Loader2 size={32} className="text-violet-500 animate-spin" />
@@ -507,19 +515,23 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-1 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-              {teamsList.filter(t =>
-                t.name.toLowerCase().includes(teamSearch.toLowerCase()) ||
-                t.mentor?.name?.toLowerCase().includes(teamSearch.toLowerCase())
-              ).length === 0 ? (
+              {teamsList.filter(t => {
+                const matchesSearch = t.name.toLowerCase().includes(teamSearch.toLowerCase()) ||
+                                     t.mentor?.name?.toLowerCase().includes(teamSearch.toLowerCase());
+                const matchesStatus = filterStatus ? t.status === filterStatus : true;
+                return matchesSearch && matchesStatus;
+              }).length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-slate-500 italic text-sm">Nenhuma equipe encontrada.</p>
                 </div>
               ) : (
                 teamsList
-                  .filter(t =>
-                    t.name.toLowerCase().includes(teamSearch.toLowerCase()) ||
-                    t.mentor?.name?.toLowerCase().includes(teamSearch.toLowerCase())
-                  )
+                  .filter(t => {
+                    const matchesSearch = t.name.toLowerCase().includes(teamSearch.toLowerCase()) ||
+                                         t.mentor?.name?.toLowerCase().includes(teamSearch.toLowerCase());
+                    const matchesStatus = filterStatus ? t.status === filterStatus : true;
+                    return matchesSearch && matchesStatus;
+                  })
                   .map((team) => (
                     <div key={team.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800/50 transition-colors border border-transparent hover:border-slate-800">
                       <div className="w-10 h-10 rounded-full bg-pink-500/10 flex items-center justify-center text-pink-400 font-bold text-xs">
