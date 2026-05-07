@@ -1,13 +1,17 @@
 # ✨ Tutoria Tech — Plataforma de Mentoria e Aprendizagem
 
-> **🎓 Sistema Web para Gestão do Projeto Meninas Digitais – UTFPR-CP**
->
-> | Integrante | RA |
-> | :--- | :---: |
-> | **Gian Pedro Rodrigues** | `2503638` |
-> | **João Marcelo Alves Müller** | `2525461` |
-> | **João Victor da Cruz Silvestre** | `2144263` |
-> | **Luiz Arthur Chagas Oliveira** | `1905058` |
+---
+
+### 🎓 Sistema Web para Gestão do Projeto Meninas Digitais — UTFPR-CP
+
+| Integrante | RA |
+| :--- | :---: |
+| **Gian Pedro Rodrigues** | 2503638 |
+| **João Marcelo Alves Müller** | 2525461 |
+| **João Victor da Cruz Silvestre** | 2144263 |
+| **Luiz Arthur Chagas Oliveira** | 1905058 |
+
+---
 
 Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento de alunas, gestão de equipes, agenda de encontros, materiais de apoio e a **Rose** — assistente de IA integrada.
 
