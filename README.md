@@ -56,10 +56,16 @@ Acesse em: **http://localhost:5173**
 
 Login de teste: `admin@projeto.com` / `admin`
 
+Para re-popular o banco manualmente:
+
+```powershell
+docker exec tutoria_backend npx prisma db seed
+```
+
 > Para mais detalhes, consulte o [Guia de Instalação](docs/INSTALACAO.md).
 
 ---
 
 ## 📄 Licença
 
-Projeto acadêmico desenvolvido para o programa **Technovation Girls**.
+Projeto acadêmico desenvolvido para o programa **Meninas Digitais - UTFPR-CP**.
