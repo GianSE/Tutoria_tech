@@ -36,6 +36,7 @@ Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento
 | :--- | :--- |
 | [📦 Guia de Instalação](docs/INSTALACAO.md) | Como rodar localmente, configurar a IA Rose e popular o banco |
 | [🏗️ Arquitetura do Sistema](docs/ARQUITETURA.md) | Serviços, fluxos, modelo de dados e controle de acesso |
+| [🗄️ Modelo de Dados](docs/DATABASE.md) | Tabelas, relacionamentos, enums e busca vetorial (pgvector) |
 
 ---
 

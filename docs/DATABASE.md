@@ -1,22 +1,26 @@
-# Documentação do Banco de Dados — Tutoria Tech
+# 🗄️ Modelo de Dados — Banco de Dados
 
-Este documento descreve a estrutura do banco de dados do projeto Tutoria Tech, detalhando as entidades, relacionamentos, tipos de dados e a implementação de busca vetorial.
+Este documento detalha a estrutura do banco de dados do **Tutoria Tech**, abrangendo entidades, relacionamentos, tipos enumerados e a implementação técnica da busca vetorial (RAG).
 
-## 🛠️ Tecnologia
-O projeto utiliza **PostgreSQL 16** com a extensão **pgvector** para suporte a embeddings de IA. O gerenciamento do esquema é feito através do **Prisma ORM**.
+---
 
-### Informações de Conexão (Desenvolvimento)
-| Parâmetro | Valor |
+## 🏗️ Tecnologia e Infraestrutura
+
+O sistema utiliza o **PostgreSQL 16** como motor principal, potencializado pela extensão **pgvector** para processamento de inteligência artificial.
+
+| Componente | Especificação |
 | :--- | :--- |
-| **Engine** | PostgreSQL 16 + pgvector |
+| **Engine** | PostgreSQL 16 |
+| **Extensões** | `pgvector` (Busca Vetorial) |
+| **ORM** | Prisma |
 | **Database** | `tutoriatech` |
-| **User** | `tutoriatech_user` |
-| **Password** | `tutoriatech_pass` |
-| **Porta** | `5432` |
+| **Acesso Local** | `localhost:5432` |
 
 ---
 
 ## 📊 Diagrama Entidade-Relacionamento (ER)
+
+Abaixo, a representação visual das conexões entre as principais entidades do sistema.
 
 ```mermaid
 erDiagram
@@ -26,7 +30,6 @@ erDiagram
     USER ||--o{ STUDENT_PROGRESS : records
     
     TEAM ||--o{ STUDENT_PROGRESS : has
-    TEAM ||--o{ USER : students
     
     MATERIAL ||--o{ MATERIAL_FILE : contains
     
@@ -38,16 +41,12 @@ erDiagram
         int id PK
         string name
         string email
-        string password
         Role role
-        datetime birthDate
     }
 
     TEAM {
         int id PK
         string name
-        string description
-        string accessCode
         TeamStatus status
         int mentorId FK
     }
@@ -56,15 +55,6 @@ erDiagram
         int id PK
         string title
         string category
-        string type
-    }
-
-    SCHEDULE {
-        int id PK
-        string title
-        datetime date
-        ScheduleType type
-        ScheduleStatus status
     }
 
     KNOWLEDGE_CHUNK {
@@ -77,62 +67,38 @@ erDiagram
 
 ---
 
-## 📝 Descrição das Tabelas
+## 📝 Descrição das Entidades
 
-### 1. Usuários (`users`)
-Armazena todos os participantes do sistema (Administradores, Mentoras e Alunas).
-*   `id`: Identificador único (Autoincrement).
-*   `name`: Nome completo.
-*   `email`: E-mail único para login.
-*   `password`: Hash da senha.
-*   `role`: Papel no sistema (`ADMIN`, `MENTORA`, `ALUNA`).
+### 👥 Gestão de Usuários e Equipes
+*   **Users (`users`)**: Centraliza todos os perfis do sistema. Distingue entre `ADMIN`, `MENTORA` e `ALUNA`.
+*   **Teams (`teams`)**: Agrupamentos de alunas sob a supervisão de uma mentora. Possui um `accessCode` para entrada simplificada de alunas.
+*   **Student Progress (`student_progress`)**: Acompanhamento individual da evolução técnica e comportamental de cada aluna dentro de sua equipe.
 
-### 2. Equipes (`teams`)
-Grupos de alunas mentorados por uma voluntária.
-*   `mentorId`: Relacionamento com a Mentora responsável.
-*   `status`: Estágio atual do projeto (`IDEACAO`, `PROTOTIPAGEM`, etc.).
-*   `accessCode`: Código para alunas entrarem na equipe.
+### 📚 Conteúdo e Conhecimento
+*   **Materials (`materials`)**: Catálogo de conteúdos de apoio (PDFs, Vídeos, Guias).
+*   **Material Files (`material_files`)**: Referências aos arquivos físicos armazenados no **MinIO**.
+*   **Knowledge (`knowledge_documents` & `chunks`)**: Base de dados especializada para a **IA Rose**. O texto é fragmentado em *chunks* e convertido em vetores de 768 dimensões para busca por similaridade.
 
-### 3. Materiais (`materials` & `material_files`)
-Repositório de conteúdo educativo.
-*   Um `Material` pode ter múltiplos arquivos associados em `material_files`.
-*   Os arquivos físicos são armazenados no **MinIO**.
-
-### 4. Agenda e Presença (`schedules` & `attendances`)
-Gestão de eventos e controle de participação.
-*   `schedules`: Define a data, local e tipo do evento.
-*   `attendances`: Tabela de junção que marca quais usuários compareceram a quais eventos.
-
-### 5. Progresso das Alunas (`student_progress`)
-Registros individuais de evolução técnica e comportamental.
-*   Vincula uma aluna a uma equipe específica com notas e estágio de evolução.
-
-### 6. IA e Conhecimento (`knowledge_documents` & `knowledge_chunks`)
-Base de conhecimento para a assistente Rose.
-*   `knowledge_documents`: Metadados dos documentos submetidos.
-*   `knowledge_chunks`: Fragmentos de texto processados.
-*   **Busca Vetorial**: A coluna `embedding` utiliza o tipo `vector(768)` do pgvector para permitir busca por similaridade de cosseno.
+### 📅 Eventos e Presença
+*   **Schedules (`schedules`)**: Registro de encontros, workshops e tutorias.
+*   **Attendances (`attendances`)**: Controle de participação em tempo real, vinculando usuários aos eventos da agenda.
 
 ---
 
-## 🔢 Enums (Tipos Enumerados)
+## 🔢 Tipos Enumerados (Enums)
 
-| Enum | Valores |
-| :--- | :--- |
-| **Role** | `ADMIN`, `MENTORA`, `ALUNA` |
-| **TeamStatus** | `IDEACAO`, `PROTOTIPAGEM`, `EM_DESENVOLVIMENTO`, `CONCLUIDO` |
-| **ScheduleStatus** | `PENDENTE`, `REALIZADA`, `CANCELADA` |
-| **ScheduleType** | `MENINAS_NO_LAB`, `RODA_DE_CONVERSA`, `SESSAO_DE_TUTORIA`, `TECHNOVATION_EVENT` |
-| **ProgressStage** | `INICIO`, `DESENVOLVENDO`, `AVANCADO`, `CONCLUIDO` |
+Esses tipos garantem a integridade dos dados e padronizam os estados do sistema.
 
----
-
-## 🚀 Configurações de Sistema (`system_settings`)
-Tabela chave-valor para configurações dinâmicas, como:
-*   `GEMINI_API_KEY`: Chave para os serviços de IA.
-*   `ROSE_SYSTEM_PROMPT`: Instruções de comportamento da assistente Rose.
+| Enum | Finalidade | Valores |
+| :--- | :--- | :--- |
+| **Role** | Níveis de acesso | `ADMIN`, `MENTORA`, `ALUNA` |
+| **TeamStatus** | Ciclo de vida do projeto | `IDEACAO`, `PROTOTIPAGEM`, `EM_DESENVOLVIMENTO`, `CONCLUIDO` |
+| **ScheduleStatus** | Estado do evento | `PENDENTE`, `REALIZADA`, `CANCELADA` |
+| **ProgressStage** | Nível de evolução | `INICIO`, `DESENVOLVENDO`, `AVANCADO`, `CONCLUIDO` |
 
 ---
 
-## 🔍 Opções Dinâmicas (`system_options`)
-Permite configurar as opções de selects e labels do sistema sem alterar o código, agrupadas por categorias como categorias de materiais ou tipos de eventos.
+## ⚙️ Configurações e Logs
+*   **System Settings (`system_settings`)**: Armazena chaves de API e prompts do sistema (IA).
+*   **System Options (`system_options`)**: Define dinamicamente os labels e cores das categorias e status usados no sistema.
+*   **Activity Logs (`activity_logs`)**: Trilha de auditoria das ações críticas realizadas na plataforma.
