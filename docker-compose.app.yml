@@ -27,7 +27,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_USE_SSL=false
       - MINIO_BUCKET_NAME=materiais
-      - MINIO_PUBLIC_URL=http://minio:9000
+      - MINIO_PUBLIC_URL=http://localhost:9000
     command: sh -c "npx prisma generate && npx prisma db push && npx prisma db seed && npm run dev"
     expose:
       - "3001"   # apenas rede interna Docker

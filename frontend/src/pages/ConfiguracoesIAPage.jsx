@@ -13,8 +13,11 @@ import {
   Trash2,
   Upload,
   X,
+  Search,
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
+import Modal from "../components/Modal";
+
 
 
 export default function ConfiguracoesIAPage() {
@@ -32,9 +35,14 @@ export default function ConfiguracoesIAPage() {
   const [queue, setQueue] = useState([]);
   const [processingId, setProcessingId] = useState(null);
   const [processingAttempts, setProcessingAttempts] = useState(0);
-  const [failedIds, setFailedIds] = useState([]);
+   const [failedIds, setFailedIds] = useState([]);
   const [canceledIds, setCanceledIds] = useState([]);
   const [deletingId, setDeletingId] = useState(null);
+
+  const [viewingDoc, setViewingDoc] = useState(null);
+  const [docChunks, setDocChunks] = useState([]);
+  const [loadingChunks, setLoadingChunks] = useState(false);
+
 
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -178,6 +186,22 @@ export default function ConfiguracoesIAPage() {
       return [...prev, id];
     });
   }
+
+  const handleViewChunks = async (doc) => {
+    setViewingDoc(doc);
+    setLoadingChunks(true);
+    setDocChunks([]);
+    try {
+      const res = await apiFetch(`/api/settings/knowledge/${doc.id}/chunks`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Erro ao buscar conteúdo.");
+      setDocChunks(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingChunks(false);
+    }
+  };
 
   function cancelReprocess(id) {
     setQueue((prev) => prev.filter((value) => value !== id));
@@ -526,7 +550,16 @@ export default function ConfiguracoesIAPage() {
                     <p className="text-slate-100 text-sm font-medium truncate">{doc.filename}</p>
                   )}
                   <p className="text-slate-500 text-xs">Enviado em {formatDate(doc.createdAt)}</p>
+                  {isDone && (
+                    <button
+                      onClick={() => handleViewChunks(doc)}
+                      className="text-violet-400 hover:text-violet-300 text-[10px] font-bold uppercase tracking-wider mt-1"
+                    >
+                      Ver Conteúdo Processado
+                    </button>
+                  )}
                 </div>
+
                 <div className="flex items-center gap-2 text-xs">
                   {isProcessing ? (
                     <Loader2 size={14} className="animate-spin text-sky-300" />
@@ -581,6 +614,50 @@ export default function ConfiguracoesIAPage() {
           )}
         </div>
       </section>
+
+      {/* ─── Modal: Conteúdo do Documento ────────────────────────────────────── */}
+      <Modal 
+        isOpen={!!viewingDoc} 
+        onClose={() => setViewingDoc(null)} 
+        title={viewingDoc?.filename ?? "Conteúdo Processado"}
+        size="lg"
+      >
+        {loadingChunks ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <Loader2 size={32} className="text-violet-500 animate-spin" />
+            <p className="text-slate-400 text-sm">Buscando fragmentos...</p>
+          </div>
+        ) : docChunks.length === 0 ? (
+          <div className="text-center py-12">
+            <AlertCircle size={32} className="text-slate-700 mx-auto mb-3" />
+            <p className="text-slate-500">Nenhum fragmento encontrado para este documento.</p>
+            <p className="text-slate-600 text-xs mt-1">Tente reprocessar o arquivo.</p>
+          </div>
+        ) : (
+          <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-3 mb-4">
+              <p className="text-xs text-violet-300 leading-relaxed">
+                Abaixo estão os fragmentos (chunks) que a Rose utiliza para consulta. 
+                Estes textos foram extraídos e indexados para busca semântica.
+              </p>
+            </div>
+            
+            {docChunks.map((chunk, idx) => (
+              <div key={chunk.id || idx} className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Fragmento #{idx + 1}</span>
+                  <span className="text-[10px] text-slate-600">{chunk.content.length} caracteres</span>
+                </div>
+                <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap font-serif">
+                  {chunk.content}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+
     </div>
   );
 }
+

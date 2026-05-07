@@ -23,42 +23,6 @@ export async function settingsRoutes(app) {
     return reply.send(options);
   });
 
-  // ── GET /:group — lista opções de um grupo específico ───────────────────────
-  app.get("/:group", async (req, reply) => {
-    const { group } = req.params;
-    const options = await prisma.systemOption.findMany({
-      where: { group },
-      orderBy: { label: "asc" }
-    });
-    return reply.send(options);
-  });
-
-  // ── POST / — cria ou atualiza uma opção ─────────────────────────────────────
-  app.post("/", {
-    onRequest: [adminOnly(app)],
-    schema: {
-      body: {
-        type: "object",
-        required: ["group", "value", "label"],
-        properties: {
-          group: { type: "string" },
-          value: { type: "string" },
-          label: { type: "string" },
-          color: { type: "string" }
-        }
-      }
-    }
-  }, async (req, reply) => {
-    const { group, value, label, color } = req.body;
-    
-    const option = await prisma.systemOption.upsert({
-      where: { group_value: { group, value } },
-      update: { label, color },
-      create: { group, value, label, color }
-    });
-
-    return reply.send(option);
-  });
 
   // ── DELETE /:id — remove uma opção ──────────────────────────────────────────
   app.delete("/:id", {
@@ -159,10 +123,13 @@ export async function settingsRoutes(app) {
       orderBy: { createdAt: "desc" }
     });
 
-    // Mapeia para o formato que o frontend espera (se necessário)
+    const publicBase = process.env.MINIO_PUBLIC_URL || `http://localhost:9000`;
+    const bucketName = process.env.MINIO_BUCKET_NAME || "materiais";
+
     const result = docs.map(d => ({
       ...d,
-      chunksCount: d._count.chunks
+      chunksCount: d._count.chunks,
+      fileUrl: `${publicBase}/${bucketName}/${d.filename}`
     }));
 
     return reply.send(result);
@@ -174,5 +141,58 @@ export async function settingsRoutes(app) {
     await prisma.knowledgeDocument.delete({ where: { id } });
     return reply.send({ message: "Documento removido da base de conhecimento." });
   });
+
+  // GET /knowledge/:id/chunks — Busca o conteúdo processado (chunks) do documento
+  app.get("/knowledge/:id/chunks", { onRequest: [adminOnly(app)] }, async (req, reply) => {
+    const id = Number(req.params.id);
+    const chunks = await prisma.knowledgeChunk.findMany({
+      where: { documentId: id },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, content: true }
+    });
+    return reply.send(chunks);
+  });
+
+  // ── SYSTEM OPTIONS (GENERIC) ───────────────────────────────────────────────
+
+  // GET /:group — lista opções de um grupo específico
+  // Movido para o final para não conflitar com rotas estáticas /ai e /knowledge
+  app.get("/:group", async (req, reply) => {
+    const { group } = req.params;
+    const options = await prisma.systemOption.findMany({
+      where: { group },
+      orderBy: { label: "asc" }
+    });
+    return reply.send(options);
+  });
+
+  // POST / — cria ou atualiza uma opção
+  app.post("/", {
+    onRequest: [adminOnly(app)],
+    schema: {
+      body: {
+        type: "object",
+        required: ["group", "value", "label"],
+        properties: {
+          group: { type: "string" },
+          value: { type: "string" },
+          label: { type: "string" },
+          color: { type: "string" }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { group, value, label, color } = req.body;
+    
+    const option = await prisma.systemOption.upsert({
+      where: { group_value: { group, value } },
+      update: { label, color },
+      create: { group, value, label, color }
+    });
+
+    return reply.send(option);
+  });
 }
+
+
 
