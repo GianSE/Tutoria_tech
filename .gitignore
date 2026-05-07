@@ -30,3 +30,4 @@ desktop.ini
 coverage/
 *.tsx.snap
 __pycache__
+docker-compose.ngrok.yml

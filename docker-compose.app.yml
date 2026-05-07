@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════
-#  APLICAÇÃO — Backend + Frontend + Ngrok
-#  Subir com:  docker compose up -d --build
+#  APLICAÇÃO — Backend + Frontend
+#  Subir com:  docker compose -f docker-compose.app.yml up -d --build
 #
 #  ⚠ Pré-requisitos:
 #    1. docker compose -f docker-compose.infra.yml up -d
@@ -18,7 +18,7 @@ services:
     container_name: tutoria_backend
     restart: unless-stopped
     env_file:
-      - ./backend/.env
+      - ./backend/.env.dev
     environment:
       - PYTHON_API_URL=http://python-ia:8000
       - MINIO_ENDPOINT=minio
@@ -28,10 +28,9 @@ services:
       - MINIO_USE_SSL=false
       - MINIO_BUCKET_NAME=materiais
       - MINIO_PUBLIC_URL=http://minio:9000
-    command: sh -c "npx prisma generate && npx prisma db push && npx prisma db seed && npx prisma studio --hostname 0.0.0.0 & npm run dev"
+    command: sh -c "npx prisma generate && npx prisma db push && npx prisma db seed && npm run dev"
     expose:
-      - "3001"
-      - "5555"
+      - "3001"   # apenas rede interna Docker
     networks:
       - tutoria-network
     volumes:
@@ -47,8 +46,8 @@ services:
       dockerfile: Dockerfile
     container_name: tutoria_frontend
     restart: unless-stopped
-    expose:
-      - "5173"
+    ports:
+      - "5173:5173"   # Frontend React (http://localhost:5173)
     depends_on:
       - backend
     networks:
@@ -56,23 +55,6 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-
-  # ─────────────────────────────────────────────
-  #  NGROK — Túnel público para o Frontend
-  # ─────────────────────────────────────────────
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: tutoria_ngrok
-    restart: unless-stopped
-    environment:
-      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
-    command: http frontend:5173
-    ports:
-      - "4040:4040"   # Dashboard de inspeção do ngrok (http://localhost:4040)
-    depends_on:
-      - frontend
-    networks:
-      - tutoria-network
 
 networks:
   tutoria-network:

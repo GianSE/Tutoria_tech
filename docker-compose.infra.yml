@@ -39,9 +39,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     command: server /data --console-address ":9001"
-    expose:
-      - "9000"
-      - "9001"
+    ports:
+      - "9001:9001"   # Console web MinIO (http://localhost:9001)
     volumes:
       - minio_data:/data
     networks:
