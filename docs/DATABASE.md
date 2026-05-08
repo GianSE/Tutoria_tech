@@ -1,10 +1,10 @@
-# 🗄️ Modelo de Dados — Banco de Dados
+#  Modelo de Dados — Banco de Dados
 
 Este documento detalha a estrutura do banco de dados do **Tutoria Tech**, abrangendo entidades, relacionamentos, tipos enumerados e a implementação técnica da busca vetorial (RAG).
 
 ---
 
-## 🏗️ Tecnologia e Infraestrutura
+##  Tecnologia e Infraestrutura
 
 O sistema utiliza o **PostgreSQL 16** como motor principal, potencializado pela extensão **pgvector** para processamento de inteligência artificial.
 
@@ -18,7 +18,7 @@ O sistema utiliza o **PostgreSQL 16** como motor principal, potencializado pela 
 
 ---
 
-## 🔌 Como Conectar (DBeaver / pgAdmin)
+##  Como Conectar (DBeaver / pgAdmin)
 
 Para visualizar os dados e a estrutura diretamente, você pode usar o [DBeaver (Download)](https://dbeaver.io/download/).
 
@@ -32,7 +32,7 @@ Para visualizar os dados e a estrutura diretamente, você pode usar o [DBeaver (
 
 ---
 
-## 📊 Diagrama Entidade-Relacionamento (ER)
+##  Diagrama Entidade-Relacionamento (ER)
 
 Abaixo, a representação visual das conexões entre as principais entidades do sistema.
 
@@ -81,25 +81,25 @@ erDiagram
 
 ---
 
-## 📝 Descrição das Entidades
+##  Descrição das Entidades
 
-### 👥 Gestão de Usuários e Equipes
+###  Gestão de Usuários e Equipes
 *   **Users (`users`)**: Centraliza todos os perfis do sistema. Distingue entre `ADMIN`, `MENTORA` e `ALUNA`.
 *   **Teams (`teams`)**: Agrupamentos de alunas sob a supervisão de uma mentora. Possui um `accessCode` para entrada simplificada de alunas.
 *   **Student Progress (`student_progress`)**: Acompanhamento individual da evolução técnica e comportamental de cada aluna dentro de sua equipe.
 
-### 📚 Conteúdo e Conhecimento
+###  Conteúdo e Conhecimento
 *   **Materials (`materials`)**: Catálogo de conteúdos de apoio (PDFs, Vídeos, Guias).
 *   **Material Files (`material_files`)**: Referências aos arquivos físicos armazenados no **MinIO**.
 *   **Knowledge (`knowledge_documents` & `chunks`)**: Base de dados especializada para a **IA Rose**. O texto é fragmentado em *chunks* e convertido em vetores de 768 dimensões para busca por similaridade.
 
-### 📅 Eventos e Presença
+###  Eventos e Presença
 *   **Schedules (`schedules`)**: Registro de encontros, workshops e tutorias.
 *   **Attendances (`attendances`)**: Controle de participação em tempo real, vinculando usuários aos eventos da agenda.
 
 ---
 
-## 🔢 Tipos Enumerados (Enums)
+##  Tipos Enumerados (Enums)
 
 Esses tipos garantem a integridade dos dados e padronizam os estados do sistema.
 
@@ -112,7 +112,7 @@ Esses tipos garantem a integridade dos dados e padronizam os estados do sistema.
 
 ---
 
-## ⚙️ Configurações e Logs
+##  Configurações e Logs
 *   **System Settings (`system_settings`)**: Armazena chaves de API e prompts do sistema (IA).
 *   **System Options (`system_options`)**: Define dinamicamente os labels e cores das categorias e status usados no sistema.
 *   **Activity Logs (`activity_logs`)**: Trilha de auditoria das ações críticas realizadas na plataforma.

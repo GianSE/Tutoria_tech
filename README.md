@@ -1,8 +1,10 @@
-# ✨ Tutoria Tech — Plataforma de Mentoria e Aprendizagem
+#  Tutoria Tech — Plataforma de Mentoria e Aprendizagem
 
 ---
 
-### 🎓 Sistema Web para Gestão do Projeto Meninas Digitais — UTFPR-CP
+###  Sistema Web para Gestão do Projeto Meninas Digitais — UTFPR-CP
+
+#### Integrantes do Grupo 10
 
 | Integrante | RA |
 | :--- | :---: |
@@ -17,7 +19,7 @@ Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento
 
 ---
 
-## 🛠 Stack
+##  Stack
 
 | Camada | Tecnologias |
 | :--- | :--- |
@@ -30,7 +32,7 @@ Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento
 
 ---
 
-## 📚 Documentação
+##  Documentação
 
 | Documento | Descrição |
 | :--- | :--- |
@@ -40,13 +42,13 @@ Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento
 
 ---
 
-## 📋 Pré-requisitos
+##  Pré-requisitos
 
 - **Docker** & **Git**
 
 ---
 
-## ⚡ Início Rápido
+##  Início Rápido
 
 ```powershell
 # 0º — Clonar o repositório
@@ -77,6 +79,6 @@ docker exec tutoria_backend npx prisma db seed
 
 ---
 
-## 📄 Licença
+##  Licença
 
 Projeto acadêmico desenvolvido para o programa **Meninas Digitais - UTFPR-CP**.

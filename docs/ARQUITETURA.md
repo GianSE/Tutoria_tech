@@ -1,10 +1,10 @@
-# 🏗️ Arquitetura do Sistema — Tutoria Tech
+#  Arquitetura do Sistema — Tutoria Tech
 
 Visão técnica completa da arquitetura da plataforma **Tutoria Tech**, uma aplicação web de mentoria para o programa **Technovation Girls**.
 
 ---
 
-## 📋 Índice
+##  Índice
 
 - [Visão Geral](#visão-geral)
 - [Stack Tecnológica](#stack-tecnológica)
