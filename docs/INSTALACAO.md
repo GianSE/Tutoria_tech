@@ -1,5 +1,8 @@
 # 🚀 Instalação Local — Tutoria Tech
 
+## Vídeo tutorial
+https://drive.google.com/file/d/1iu-f_WCb6BklwU2wRFgTo_Sw_iyqxVmK/view?usp=sharing
+
 ---
 
 ## Pré-requisitos
