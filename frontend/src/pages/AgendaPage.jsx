@@ -8,6 +8,9 @@ import Modal from "../components/Modal";
 import { apiFetch } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
+{/* ## interage com /api/schedules                   */}
+{/* ## conexão com os endpoints do backend para CRUD */}
+
 const TIPO_STYLE = {
   MENINAS_NO_LAB:     "bg-violet-500/15 text-violet-400 border-violet-500/30",
   RODA_DE_CONVERSA:   "bg-pink-500/15   text-pink-400   border-pink-500/30",

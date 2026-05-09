@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 
+{/* ## interage com /api/users                          */}
+{/* ## conexão com os endpoints do backend para leitura */}
+
 export default function HomePage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);

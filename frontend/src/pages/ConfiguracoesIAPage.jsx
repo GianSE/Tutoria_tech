@@ -19,7 +19,8 @@ import {
 import { apiFetch } from "../lib/api";
 import Modal from "../components/Modal";
 
-
+{/* ## interage com /api/settings/knowledge               */}
+{/* ## conexão com os endpoints do backend para uso de IA */}
 
 export default function ConfiguracoesIAPage() {
   const fileInputRef = useRef(null);

@@ -4,6 +4,9 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { apiFetch } from "../lib/api";
 
+{/* ## interage com /api/user/respectivo id do usuário                           */}
+{/* ## conexão com os endpoints do backend para leitura ou atualização de perfil */}
+
 const ROLE_LABELS = { ADMIN: "Administrador", MENTORA: "Mentora", ALUNA: "Aluna" };
 const ROLE_STYLES = {
   ADMIN:   "bg-purple-500/20 text-purple-400 border border-purple-500/30",

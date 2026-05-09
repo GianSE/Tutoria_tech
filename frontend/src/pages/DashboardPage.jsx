@@ -5,6 +5,9 @@ import { apiFetch } from "../lib/api";
 import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 
+{/* ## interage com /api/dashboard/stats, /api/schedules, /api/users, /api/teams, /api/materials */}
+{/* ## conexão com os endpoints do backend para leitura de métricas e listagens gerais           */}
+
 const TIPO_STYLE = {
   MENINAS_NO_LAB: "bg-violet-500/15 text-violet-400 border-violet-500/30",
   RODA_DE_CONVERSA: "bg-pink-500/15   text-pink-400   border-pink-500/30",

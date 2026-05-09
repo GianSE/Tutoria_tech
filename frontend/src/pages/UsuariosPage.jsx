@@ -4,6 +4,10 @@ import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 
+{/* ## interage com /api/users                       */}
+{/* ## conexão com os endpoints do backend para CRUD */}
+{/* ## Gerenciamento de usuários                     */}
+
 const ROLE_LABELS = { ADMIN: "Admin", MENTORA: "Mentora", ALUNA: "Aluna" };
 const ROLE_STYLES = {
   ADMIN:   "bg-purple-500/20 text-purple-400 border border-purple-500/30",
@@ -119,7 +123,7 @@ export default function UsuariosPage() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Top bar */}
+      {/* Barra superior */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white">Usuários</h2>
@@ -130,7 +134,7 @@ export default function UsuariosPage() {
         </button>
       </div>
 
-      {/* Search */}
+      {/* Pesquisa */}
       <div className="relative max-w-sm">
         <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
         <input

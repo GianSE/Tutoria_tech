@@ -6,6 +6,9 @@ import {
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 
+{/* ## interage com /api/settings                                         */}
+{/* ## conexão com os endpoints do backend para salvar chaves e variáveis */}
+
 const GROUPS = [
   { id: "MATERIAL_CATEGORY", label: "Categorias de Materiais", icon: FolderOpen,  desc: "Ex: Programação, Design, Carreira" },
   { id: "MATERIAL_TYPE",     label: "Tipos de Materiais",     icon: Tag,         desc: "Ex: Tutorial, Guia, Desafio" },

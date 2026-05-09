@@ -7,6 +7,10 @@ import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 
+{/* ## interage com /api/teams                       */}
+{/* ## conexão com os endpoints do backend para CRUD */}
+{/* ## Gerenciamento de turmas de tutoria            */}
+
 const STATUS_STYLE = {
   IDEACAO: "bg-amber-500/15  text-amber-400  border-amber-500/30",
   EM_DESENVOLVIMENTO: "bg-blue-500/15   text-blue-400   border-blue-500/30",

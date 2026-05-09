@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Sparkles, Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
+{/* ## interage com /api/login                                               */}
+{/* ## conexão com os endpoints do backend para envio, recebimento de tokens */}
+
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();

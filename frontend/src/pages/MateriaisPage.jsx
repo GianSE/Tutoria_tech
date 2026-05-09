@@ -8,6 +8,10 @@ import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 
+{/* ## interage com /api/materials                   */}
+{/* ## conexão com os endpoints do backend para CRUD */}
+{/* ## Gerenciamento de módulos e arquivos de aula   */}
+
 function getFileIcon(fileName) {
   if (!fileName) return <File size={13} />;
   const ext = fileName.split(".").pop().toLowerCase();
