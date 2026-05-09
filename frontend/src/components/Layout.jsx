@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
+import { useScrollDirection } from "../hooks/useScrollDirection";
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
@@ -21,25 +22,12 @@ const PAGE_TITLES = {
 export default function Layout() {
   const { user, isImpersonating, stopImpersonating } = useAuth();
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
-  const [isNavVisible, setIsNavVisible] = useState(true);
-  const lastScrollY = useRef(0);
-  const scrollRef = useRef(null);
+  
   const { pathname } = useLocation();
   const title = PAGE_TITLES[pathname] ?? "Tutoria Meninas";
 
-  // Lógica de scroll para mobile (hide/show navs)
-  const handleScroll = () => {
-    if (!scrollRef.current) return;
-    const currentScrollY = scrollRef.current.scrollTop;
-    const isMobile = window.innerWidth < 768;
+  const { isVisible: isNavVisible, scrollRef, handleScroll } = useScrollDirection();
 
-    if (isMobile && currentScrollY > lastScrollY.current && currentScrollY > 50) {
-      setIsNavVisible(false);
-    } else {
-      setIsNavVisible(true);
-    }
-    lastScrollY.current = currentScrollY;
-  };
 
   return (
     <div className="h-screen bg-slate-950 flex flex-col md:flex-row overflow-hidden">
