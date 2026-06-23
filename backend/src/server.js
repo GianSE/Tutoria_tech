@@ -19,22 +19,7 @@ import { settingsRoutes }   from "./routes/settings.js";
 const app = Fastify({ logger: true });
 
 // ─── Plugins ──────────────────────────────────────────────────────────────────
-await app.register(cors, {
-  origin: (origin, cb) => {
-    // Permite localhost (dev), ngrok e qualquer origem sem origin (apps nativos, Postman)
-    if (
-      !origin ||
-      origin.includes("localhost") ||
-      origin.includes("ngrok-free.app") ||
-      origin.includes("ngrok-free.dev") ||
-      origin.includes("ngrok.io")
-    ) {
-      return cb(null, true);
-    }
-    cb(new Error("Origem não permitida pelo CORS"), false);
-  },
-  credentials: true,
-});
+await app.register(cors, { origin: true, credentials: true });
 
 await app.register(jwt, {
   secret: process.env.JWT_SECRET ?? "fallback_secret_troque_em_producao",
