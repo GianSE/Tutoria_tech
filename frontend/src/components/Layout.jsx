@@ -21,7 +21,6 @@ const PAGE_TITLES = {
 
 export default function Layout() {
   const { user, isImpersonating, stopImpersonating } = useAuth();
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { pathname } = useLocation();
@@ -33,7 +32,7 @@ export default function Layout() {
   return (
     <div className="h-screen bg-slate-950 flex flex-col md:flex-row overflow-hidden">
       <div className="hidden md:block h-full">
-        <Sidebar isExpanded={isSidebarExpanded} />
+        <Sidebar />
       </div>
 
       {/* Drawer mobile (abre pelo sanduíche do header) */}
@@ -44,10 +43,7 @@ export default function Layout() {
       />
 
       {/* Área principal */}
-      <div
-        className={`flex-1 flex flex-col h-full relative transition-all duration-300
-                   ${isSidebarExpanded ? "md:ml-64" : "md:ml-16"} ml-0`}
-      >
+      <div className="flex-1 flex flex-col h-full relative ml-0 md:ml-16">
         {/* Banner de Impersonate */}
         {isImpersonating && (
           <div className="h-9 bg-amber-500 text-slate-950 px-4 flex items-center justify-between z-[70] shadow-xl font-bold text-xs shrink-0">
@@ -68,8 +64,6 @@ export default function Layout() {
 
         <Header
           pageTitle={title}
-          isSidebarExpanded={isSidebarExpanded}
-          onToggleSidebar={() => setIsSidebarExpanded((prev) => !prev)}
           onOpenMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
           isImpersonating={isImpersonating}
         />

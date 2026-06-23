@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Users, BookOpen,
@@ -7,54 +8,58 @@ import { useAuth } from "../context/AuthContext";
 import { useChat } from "../context/ChatContext";
 
 const ALL_NAV_ITEMS = [
-  { to: "/dashboard",           label: "Dashboard",            icon: LayoutDashboard, roles: ["ADMIN", "MENTORA", "ALUNA"] },
-  { to: "/equipes",             label: "Equipes",              icon: BookOpen,        roles: ["ADMIN", "MENTORA", "ALUNA"] },
-  { to: "/materiais",           label: "Materiais",            icon: FolderOpen,      roles: ["ADMIN", "MENTORA", "ALUNA"] },
-  { to: "/agenda",              label: "Agenda",               icon: CalendarDays,    roles: ["ADMIN", "MENTORA", "ALUNA"] },
-  { to: "/progresso",           label: "Meu Progresso",        icon: TrendingUp,      roles: ["ALUNA"] },
-  { to: "/progresso",           label: "Progresso das Alunas", icon: TrendingUp,      roles: ["MENTORA"] },
-  { to: "/gerenciar-usuarios",  label: "Usuários",             icon: Users,           roles: ["ADMIN"] },
-  { to: "/configuracoes-ia",    label: "Config. IA",           icon: Bot,             roles: ["ADMIN"] },
-  { to: "/configuracoes-paginas", label: "Configurações",      icon: Settings2,       roles: ["ADMIN"] },
+  { to: "/dashboard",             label: "Dashboard",            icon: LayoutDashboard, roles: ["ADMIN", "MENTORA", "ALUNA"] },
+  { to: "/equipes",               label: "Equipes",              icon: BookOpen,        roles: ["ADMIN", "MENTORA", "ALUNA"] },
+  { to: "/materiais",             label: "Materiais",            icon: FolderOpen,      roles: ["ADMIN", "MENTORA", "ALUNA"] },
+  { to: "/agenda",                label: "Agenda",               icon: CalendarDays,    roles: ["ADMIN", "MENTORA", "ALUNA"] },
+  { to: "/progresso",             label: "Meu Progresso",        icon: TrendingUp,      roles: ["ALUNA"] },
+  { to: "/progresso",             label: "Progresso das Alunas", icon: TrendingUp,      roles: ["MENTORA"] },
+  { to: "/gerenciar-usuarios",    label: "Usuários",             icon: Users,           roles: ["ADMIN"] },
+  { to: "/configuracoes-ia",      label: "Config. IA",           icon: Bot,             roles: ["ADMIN"] },
+  { to: "/configuracoes-paginas", label: "Configurações",        icon: Settings2,       roles: ["ADMIN"] },
 ];
 
-export default function Sidebar({ isExpanded, isMobileOpen, onMobileClose, mobileOnly }) {
+export default function Sidebar({ isMobileOpen, onMobileClose, mobileOnly }) {
   const { user } = useAuth();
   const { setIsChatOpen } = useChat();
+  const [hovered, setHovered] = useState(false);
+
   const role     = user?.role ?? "ALUNA";
   const navItems = ALL_NAV_ITEMS.filter((item) => item.roles.includes(role));
+  const expanded = hovered;
 
   return (
     <>
-      {/* ── Desktop Sidebar — oculta quando mobileOnly ───────────────────────── */}
+      {/* ── Desktop Sidebar — hover expande, flutua sobre o conteúdo ────────── */}
       {!mobileOnly && (
         <aside
-          className={`fixed top-0 left-0 h-screen bg-slate-900/95 backdrop-blur
-                     border-r border-slate-800 flex flex-col z-30 overflow-hidden transition-all duration-300
-                     ${isExpanded ? "w-64" : "w-16"}`}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          className={`hidden md:flex fixed top-0 left-0 h-screen bg-slate-900/95 backdrop-blur
+                     border-r border-slate-800 flex-col z-[60] overflow-hidden transition-all duration-300
+                     ${expanded ? "w-64 shadow-2xl shadow-black/40" : "w-16"}`}
         >
           {/* Logo */}
           <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-800 min-h-[76px]">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500
+                            flex items-center justify-center flex-shrink-0">
               <Sparkles size={18} className="text-white" />
             </div>
-            <div className={`transition-opacity duration-200 whitespace-nowrap ${isExpanded ? "opacity-100" : "opacity-0"}`}>
+            <div className={`transition-opacity duration-200 whitespace-nowrap ${expanded ? "opacity-100" : "opacity-0"}`}>
               <p className="font-bold text-white text-sm leading-tight">Tutoria Meninas</p>
               <p className="text-[10px] text-slate-400 leading-tight">Technovation STEM</p>
             </div>
           </div>
 
           {/* Nav */}
-          <nav className="flex-1 overflow-y-auto px-3 pt-2 pb-4 space-y-1">
+          <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 space-y-1">
             {navItems.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={`${to}-${label}`}
                 to={to}
                 className={({ isActive }) =>
                   [
-                    "flex items-center py-2.5 min-h-[42px] rounded-xl text-sm font-medium",
-                    isExpanded ? "justify-start gap-3 px-3" : "justify-center gap-0 px-0",
-                    "transition-all duration-150",
+                    "flex items-center py-2.5 min-h-[42px] rounded-xl text-sm font-medium transition-colors duration-150",
                     isActive
                       ? "bg-violet-600/20 text-violet-400 border border-violet-600/30"
                       : "text-slate-400 hover:bg-slate-800 hover:text-slate-100",
@@ -63,10 +68,12 @@ export default function Sidebar({ isExpanded, isMobileOpen, onMobileClose, mobil
               >
                 {({ isActive }) => (
                   <>
-                    <span className={`${isExpanded ? "w-5" : "w-10"} flex items-center justify-center shrink-0`}>
+                    {/* Ícone fixo — nunca muda de posição */}
+                    <span className="w-10 flex items-center justify-center shrink-0">
                       <Icon size={17} className={isActive ? "text-violet-400" : "text-slate-300"} />
                     </span>
-                    <span className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${isExpanded ? "w-[190px] opacity-100" : "w-0 opacity-0"}`}>
+                    {/* Texto aparece com fade; sidebar overflow-hidden cuida do corte */}
+                    <span className={`whitespace-nowrap transition-opacity duration-200 ${expanded ? "opacity-100" : "opacity-0"}`}>
                       {label}
                     </span>
                   </>
@@ -112,7 +119,7 @@ export default function Sidebar({ isExpanded, isMobileOpen, onMobileClose, mobil
           </button>
         </div>
 
-        {/* Nav — todos os itens do papel */}
+        {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 pt-3 pb-4 space-y-1">
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink

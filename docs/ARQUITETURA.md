@@ -13,6 +13,8 @@ Visão técnica completa da arquitetura da plataforma **Tutoria Tech**, uma apli
 - [Fluxo da IA Rose (RAG)](#fluxo-da-ia-rose-rag)
 - [Armazenamento de Arquivos](#armazenamento-de-arquivos)
 - [Modelo de Dados](#modelo-de-dados)
+- [Navegação Adaptativa](#navegação-adaptativa)
+- [Rotas da Aplicação](#rotas-da-aplicação)
 - [Controle de Acesso (RBAC)](#controle-de-acesso-rbac)
 - [Estrutura de Diretórios](#estrutura-de-diretórios)
 
@@ -162,8 +164,15 @@ URLS / SITES:
 1. Admin cola uma URL no painel de Configurações da IA
 2. Backend cria registro em KnowledgeDocument com a URL como filename
 3. Python IA faz requisição HTTP à URL, extrai texto via BeautifulSoup
-4. Mesmo pipeline de chunking + embedding + pgvector
-5. Botão "Atualizar" re-lê o site e recria os embeddings
+4. Fallback: se o site bloquear scrapers (Instagram, etc.), usa meta tags OG
+5. Mesmo pipeline de chunking + embedding + pgvector
+6. Botão "Atualizar" re-lê o site e recria os embeddings
+
+RASTREADOR DE SITES:
+1. Admin informa uma URL base no modal "Rastrear páginas do site"
+2. Python IA (/crawl_site) busca a URL e lista todos os links internos do mesmo domínio
+3. Admin seleciona com checkboxes quais páginas quer vetorizar
+4. Backend cria um KnowledgeDocument por URL e dispara o pipeline acima para cada uma
 ```
 
 ### Consulta (Chat com a Rose)
@@ -188,7 +197,7 @@ URLS / SITES:
 | :--- | :--- |
 | `main.py` | Entrypoint FastAPI |
 | `ia_rose.py` | Chat RAG: busca vetorial + Gemini |
-| `process_files.py` | Extração de texto de arquivos e URLs, embeddings |
+| `process_files.py` | Endpoints: `/process_knowledge` (arquivos), `/process_url` (URL única) e `/crawl_site` (rastreador de páginas internas) |
 
 ---
 
@@ -259,6 +268,43 @@ ActivityLog
 
 ---
 
+## Navegação Adaptativa
+
+A interface se adapta ao dispositivo:
+
+| Dispositivo | Navegação principal | Acesso completo |
+| :--- | :--- | :--- |
+| **Desktop** | Sidebar lateral fixa (apenas ícones, `w-16`) | Hover expande para `w-64` flutuando sobre o conteúdo (não empurra) |
+| **Mobile** | BottomNav fixo com 4 itens + Rose IA central | Sanduíche `☰` no header abre drawer com todas as páginas do papel |
+
+O BottomNav mostra os itens mais usados conforme o papel:
+
+| Papel | Slot 1 | Slot 2 | Centro | Slot 4 | Slot 5 |
+| :--- | :--- | :--- | :---: | :--- | :--- |
+| **ADMIN** | Dashboard | Equipes | Rose | Materiais | Agenda |
+| **MENTORA** | Dashboard | Equipes | Rose | Agenda | Progresso |
+| **ALUNA** | Dashboard | Equipes | Rose | Agenda | Progresso |
+
+Páginas adicionais (Configurações, Materiais para mentora/aluna, Usuários, etc.) ficam acessíveis pelo drawer do sanduíche no mobile, ou pela sidebar hover no desktop.
+
+---
+
+## Rotas da Aplicação
+
+| Rota | Página | Papel |
+| :--- | :--- | :--- |
+| `/dashboard` | Dashboard | Todos |
+| `/equipes` | Gestão de Equipes | Todos |
+| `/materiais` | Materiais de Apoio | Todos |
+| `/agenda` | Agenda de Encontros | Todos |
+| `/progresso` | Progresso das Alunas | MENTORA, ALUNA |
+| `/perfil` | Meu Perfil | Todos |
+| `/gerenciar-usuarios` | Gerenciar Usuários | ADMIN |
+| `/configuracoes-ia` | Configuração da IA | ADMIN |
+| `/configuracoes-paginas` | Configurações de Páginas | ADMIN |
+
+---
+
 ## Controle de Acesso (RBAC)
 
 | Recurso / Visão | Admin | Mentora | Aluna |
@@ -315,15 +361,16 @@ Tutoria_tech/
 │   └── src/
 │       ├── App.jsx               # Roteamento
 │       ├── context/              # AuthContext, ChatContext, ThemeContext, ToastContext
-│       ├── components/           # Layout, Sidebar, BottomNav, ChatWidget,
+│       ├── components/           # Layout, Sidebar (hover desktop + drawer mobile),
+│       │                         # Header, BottomNav, ChatWidget,
 │       │                         # Toast, EmptyState, Modal, NotificationBell
-│       └── pages/                # LoginPage, DashboardPage, TutoriasPage,
+│       └── pages/                # LoginPage, DashboardPage, TutoriasPage (rota /equipes),
 │                                 # MateriaisPage, AgendaPage, ProgressoPage,
-│                                 # PerfilPage, UsuariosPage, ConfiguracoesIAPage,
-│                                 # ConfiguracoesPaginas
+│                                 # PerfilPage, UsuariosPage (rota /gerenciar-usuarios),
+│                                 # ConfiguracoesIAPage, ConfiguracoesPaginas
 │
 └── python-ia/                    # Python 3.11 + FastAPI
     ├── main.py                   # Entrypoint FastAPI
     ├── ia_rose.py                # Chat RAG: busca vetorial + Gemini
-    └── process_files.py          # Processamento de arquivos e URLs + embeddings
+    └── process_files.py          # Processamento de arquivos, URLs e rastreamento de sites
 ```

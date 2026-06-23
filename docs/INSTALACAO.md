@@ -59,6 +59,16 @@ Na primeira execução o backend aplica o schema, executa o seed e sobe automati
 
 > Backend e IA comunicam-se exclusivamente pela rede interna Docker — não ficam expostos ao host.
 
+### Acesso pelo celular (mesma rede Wi-Fi)
+
+O CORS aceita qualquer origem, então basta descobrir o IP local da sua máquina:
+
+```powershell
+ipconfig   # procure o IPv4 da sua placa de rede ativa
+```
+
+E acesse pelo celular: `http://SEU_IP:5173` (ex: `http://192.168.0.5:5173`)
+
 ### Logins de Teste
 
 Na tela de login, use os **botões de acesso rápido** (Admin, Mentora, Aluna) ou entre manualmente:
@@ -110,7 +120,8 @@ Na mesma tela, os documentos padrão (PDFs + URLs) já aparecem como **Pendente*
 
 Para adicionar novos documentos:
 - **Arquivo**: clique em "Fazer Upload de Arquivo" (PDF, DOCX, TXT, MD, XLSX, CSV)
-- **URL / Site**: cole a URL no campo "Adicionar URL / Site" e clique em "Adicionar URL"
+- **URL única**: cole a URL no campo "Adicionar URL / Site"
+- **Rastreador de site**: clique em **"Rastrear páginas do site"**, cole a URL base, marque com checkbox quais páginas internas adicionar e adicione em lote
 
 Para atualizar o conteúdo de uma URL, clique em **"Atualizar"** — a Rose re-lê o site e recria os embeddings.
 

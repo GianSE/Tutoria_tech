@@ -29,7 +29,9 @@ Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento
 | **Materiais de Apoio** | Upload de arquivos com categorias e tipos configuráveis |
 | **Agenda de Eventos** | 4 tipos de encontro com controle de presença |
 | **Rose IA (RAG)** | Assistente com base de conhecimento em PDFs, documentos e URLs |
+| **Rastreador de sites** | Descobre automaticamente todas as páginas internas de um site para vetorizar em lote |
 | **Configurações Dinâmicas** | Categorias, tipos e status configuráveis pelo Admin |
+| **Navegação adaptativa** | Sidebar hover no desktop (flutua sobre o conteúdo) + drawer + BottomNav no mobile |
 
 ---
 

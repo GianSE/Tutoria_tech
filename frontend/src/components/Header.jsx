@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import NotificationBell from "./NotificationBell";
 import Modal from "./Modal";
 
-export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, onOpenMobileMenu, isImpersonating }) {
+export default function Header({ pageTitle, onOpenMobileMenu, isImpersonating }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -33,7 +33,7 @@ export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, 
         className="h-14 bg-slate-900 border-b border-slate-800 relative z-50 flex items-center justify-between pr-4 md:pr-6"
       >
         <div className="flex items-center gap-2 pl-3">
-          {/* Sanduíche mobile — abre drawer com todas as páginas */}
+          {/* Sanduíche — mobile apenas */}
           <button
             type="button"
             onClick={onOpenMobileMenu}
@@ -50,16 +50,6 @@ export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, 
             </div>
             <span className="text-xs font-bold text-white tracking-tight">Tutoria</span>
           </div>
-
-          {/* Hamburger — desktop */}
-          <button
-            type="button"
-            onClick={onToggleSidebar}
-            className="hidden md:flex w-9 h-9 rounded-lg items-center justify-center text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
-            title="Expandir/retrair menu"
-          >
-            <Menu size={18} />
-          </button>
         </div>
 
         {/* Right side */}
