@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useScrollDirection } from "../hooks/useScrollDirection";
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
@@ -27,8 +26,6 @@ export default function Layout() {
 
   const { pathname } = useLocation();
   const title = PAGE_TITLES[pathname] ?? "Tutoria Meninas";
-
-  const { isVisible: isNavVisible, scrollRef, handleScroll } = useScrollDirection();
 
   // Fecha o drawer ao navegar
   useEffect(() => { setIsMobileMenuOpen(false); }, [pathname]);
@@ -75,22 +72,17 @@ export default function Layout() {
           onToggleSidebar={() => setIsSidebarExpanded((prev) => !prev)}
           onOpenMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
           isImpersonating={isImpersonating}
-          isVisible={isNavVisible}
         />
 
-        <main
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 scroll-smooth"
-        >
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 scroll-smooth">
           <div className="w-full max-w-7xl mx-auto">
             <Outlet />
           </div>
         </main>
       </div>
 
-      {/* Mobile Bottom Nav */}
-      <BottomNav isVisible={isNavVisible} />
+      {/* Mobile Bottom Nav — sempre visível, sem animação de scroll */}
+      <BottomNav />
 
       {/* Assistente IA */}
       <ChatWidget />

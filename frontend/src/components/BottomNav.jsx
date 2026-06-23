@@ -15,7 +15,7 @@ const ROLE_NAV = {
   ALUNA:   [dashboard, equipes, agenda, progresso],
 };
 
-export default function BottomNav({ isVisible }) {
+export default function BottomNav() {
   const { user } = useAuth();
   const { setIsChatOpen } = useChat();
 
@@ -26,7 +26,7 @@ export default function BottomNav({ isVisible }) {
   const rightItems = navItems.slice(2);
 
   return (
-    <nav className={`md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 grid grid-cols-5 items-center px-2 pb-3 z-40 transition-transform duration-300 ${!isVisible ? "translate-y-[120%]" : "translate-y-0"}`}>
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 grid grid-cols-5 items-center px-2 pb-3 z-40">
       {leftItems.map(({ to, label, icon: Icon }) => (
         <NavLink
           key={to + label}

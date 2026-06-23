@@ -203,6 +203,52 @@ export async function settingsRoutes(app) {
     }
   });
 
+  // POST /knowledge/crawl — Rastreia links internos de um site e retorna a lista
+  app.post("/knowledge/crawl", { onRequest: [adminOnly(app)] }, async (req, reply) => {
+    const { url } = req.body ?? {};
+    if (!url || !url.startsWith("http")) {
+      return reply.status(400).send({ message: "URL inválida." });
+    }
+    try {
+      const res = await fetch(`${PYTHON_API_URL}/crawl_site`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, max_pages: 30 }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.status === "error") {
+        return reply.status(500).send({ message: data.message ?? "Erro ao rastrear o site." });
+      }
+      return reply.send({ urls: data.urls, total: data.total });
+    } catch (err) {
+      return reply.status(500).send({ message: "Erro de comunicação com o serviço de IA." });
+    }
+  });
+
+  // POST /knowledge/crawl-add — Cria KnowledgeDocuments para uma lista de URLs
+  app.post("/knowledge/crawl-add", { onRequest: [adminOnly(app)] }, async (req, reply) => {
+    const { urls } = req.body ?? {};
+    if (!Array.isArray(urls) || urls.length === 0) {
+      return reply.status(400).send({ message: "Informe ao menos uma URL." });
+    }
+
+    const apiKey = await getGeminiKey();
+    const results = [];
+
+    for (const url of urls) {
+      const existing = await prisma.knowledgeDocument.findFirst({ where: { filename: url } });
+      if (existing) {
+        results.push({ url, status: "já existe", id: existing.id });
+        continue;
+      }
+      const doc = await prisma.knowledgeDocument.create({ data: { filename: url } });
+      if (apiKey) triggerUrlProcessing(doc.id, url, apiKey);
+      results.push({ url, status: "adicionada", id: doc.id });
+    }
+
+    return reply.send({ message: `${results.filter(r => r.status === "adicionada").length} URL(s) adicionada(s).`, results });
+  });
+
   // POST /knowledge/url — Adiciona uma URL como documento de conhecimento
   app.post("/knowledge/url", { onRequest: [adminOnly(app)] }, async (req, reply) => {
     const { url } = req.body ?? {};

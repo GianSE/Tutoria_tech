@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import NotificationBell from "./NotificationBell";
 import Modal from "./Modal";
 
-export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, onOpenMobileMenu, isImpersonating, isVisible }) {
+export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, onOpenMobileMenu, isImpersonating }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -30,9 +30,7 @@ export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, 
   return (
     <>
       <header
-        className={`h-14 bg-slate-900 border-b border-slate-800
-                   relative z-50 flex items-center justify-between pr-4 md:pr-6 transition-all duration-300
-                   ${!isVisible ? "hidden md:flex" : "flex"}`}
+        className="h-14 bg-slate-900 border-b border-slate-800 relative z-50 flex items-center justify-between pr-4 md:pr-6"
       >
         <div className="flex items-center gap-2 pl-3">
           {/* Sanduíche mobile — abre drawer com todas as páginas */}

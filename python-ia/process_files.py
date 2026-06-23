@@ -8,6 +8,7 @@ import io
 import re
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 
 from pypdf import PdfReader
 from docx import Document as DocxDocument
@@ -28,6 +29,10 @@ class ProcessUrlRequest(BaseModel):
     document_id: int
     url: str
     gemini_api_key: str
+
+class CrawlRequest(BaseModel):
+    url: str
+    max_pages: int = 30
 
 MINIO_ENDPOINT   = os.getenv("MINIO_ENDPOINT", "minio:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
@@ -128,73 +133,152 @@ def process_knowledge(req: ProcessKnowledgeRequest):
         print(f"Erro crítico processando {req.file_name}: {e}")
         return {"status": "error", "message": str(e)}
 
+def _extract_meta(soup, req_url):
+    """Extrai title, og:title, og:description, description e texto da página."""
+    title_tag = soup.find('title')
+    og_title  = soup.find('meta', attrs={'property': 'og:title'})
+    og_desc   = soup.find('meta', attrs={'property': 'og:description'})
+    meta_desc = soup.find('meta', attrs={'name': 'description'})
+
+    title = ""
+    if og_title and og_title.get('content'):
+        title = og_title['content']
+    elif title_tag:
+        title = title_tag.get_text(strip=True)
+
+    description = ""
+    if og_desc and og_desc.get('content'):
+        description = og_desc['content']
+    elif meta_desc and meta_desc.get('content'):
+        description = meta_desc['content']
+
+    for tag in soup(['script', 'style', 'nav', 'footer', 'noscript', 'iframe', 'svg', 'form']):
+        tag.decompose()
+    page_text = soup.get_text(separator='\n', strip=True)
+
+    return title, description, page_text
+
+
+def _build_content(req_url, title, description, page_text):
+    """Monta o conteúdo final para chunking."""
+    parts = [f"Fonte: {req_url}"]
+    if title:
+        parts.append(f"Título: {title}")
+    if description:
+        parts.append(f"Descrição: {description}")
+    if page_text:
+        parts.append(page_text)
+    return "\n\n".join(parts)
+
+
 @router.post("/process_url")
 def process_url(req: ProcessUrlRequest):
-    """Busca uma URL, extrai o texto, cria embeddings e armazena no banco."""
-    try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-        }
+    """Busca uma URL, extrai o texto, cria embeddings e armazena no banco.
 
+    Resiliente a sites que bloqueiam scrapers (ex: Instagram):
+    faz fallback para meta tags e cria pelo menos um chunk descritivo.
+    """
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+    }
+
+    title, description, page_text = "", "", ""
+    fetch_warning = ""
+
+    try:
         resp = requests.get(req.url, headers=headers, timeout=15, allow_redirects=True)
         resp.raise_for_status()
-
         soup = BeautifulSoup(resp.text, 'html.parser')
+        title, description, page_text = _extract_meta(soup, req.url)
 
-        # Remove elementos não-conteúdo
-        for tag in soup(['script', 'style', 'nav', 'footer', 'noscript', 'iframe', 'svg', 'form']):
-            tag.decompose()
-
-        # Meta título e descrição (úteis quando o HTML tem pouco texto)
-        title_tag  = soup.find('title')
-        og_title   = soup.find('meta', attrs={'property': 'og:title'})
-        og_desc    = soup.find('meta', attrs={'property': 'og:description'})
-        meta_desc  = soup.find('meta', attrs={'name': 'description'})
-
-        title = (og_title or title_tag)
-        title = title.get('content', '') if og_title else (title_tag.get_text(strip=True) if title_tag else req.url)
-
-        description = ""
-        if og_desc and og_desc.get('content'):
-            description = og_desc['content']
-        elif meta_desc and meta_desc.get('content'):
-            description = meta_desc['content']
-
-        # Texto principal da página
-        page_text = soup.get_text(separator='\n', strip=True)
-
-        # Monta conteúdo completo
-        parts = [f"Fonte: {req.url}"]
-        if title:
-            parts.append(f"Título: {title}")
-        if description:
-            parts.append(f"Descrição: {description}")
-        if page_text:
-            parts.append(page_text)
-
-        full_text = "\n\n".join(parts)
-
-        if not full_text.strip():
-            return {"status": "error", "message": "Nenhum conteúdo extraído desta URL."}
-
-        chunks = chunk_text(full_text)
-        if not chunks:
-            return {"status": "error", "message": "Conteúdo insuficiente para processar."}
-
-        embed_and_store(chunks, req.document_id, req.gemini_api_key, replace=True)
-        return {"status": "success", "chunks_criados": len(chunks)}
+        # Detecta páginas de login/bloqueio (conteúdo inútil)
+        blocked_signals = ["log in", "login", "sign in", "signin", "faça login", "entre para ver"]
+        page_lower = page_text.lower()
+        if any(s in page_lower for s in blocked_signals) and len(page_text) < 2000:
+            fetch_warning = "Site exigiu login — usando apenas meta informações disponíveis."
+            page_text = ""
 
     except requests.exceptions.HTTPError as e:
         status = e.response.status_code if e.response else "?"
-        msg = f"HTTP {status} ao acessar a URL. O site pode bloquear acesso automático."
-        print(f"[process_url] {msg} — {req.url}")
-        return {"status": "error", "message": msg}
+        fetch_warning = f"HTTP {status} ao buscar a URL — usando fallback de meta dados."
+        # Tenta extrair meta do corpo de erro se houver
+        try:
+            soup = BeautifulSoup(e.response.text, 'html.parser')
+            title, description, _ = _extract_meta(soup, req.url)
+        except Exception:
+            pass
     except requests.exceptions.ConnectionError:
         return {"status": "error", "message": "Não foi possível conectar à URL. Verifique se está acessível."}
     except requests.exceptions.Timeout:
         return {"status": "error", "message": "Tempo limite ao acessar a URL."}
     except Exception as e:
-        print(f"[process_url] Erro ao processar {req.url}: {e}")
+        print(f"[process_url] Erro ao buscar {req.url}: {e}")
+        fetch_warning = f"Erro ao acessar a URL: {str(e)}"
+
+    # Monta conteúdo e chuncka
+    full_text = _build_content(req.url, title, description, page_text)
+    chunks = chunk_text(full_text)
+
+    # Fallback: se nenhum chunk gerado, cria um chunk mínimo com o que se sabe
+    if not chunks:
+        fallback = f"URL: {req.url}"
+        if title:
+            fallback += f"\nTítulo: {title}"
+        if description:
+            fallback += f"\nDescrição: {description}"
+        if fetch_warning:
+            fallback += f"\nObservação: {fetch_warning}"
+        chunks = [fallback]
+
+    try:
+        embed_and_store(chunks, req.document_id, req.gemini_api_key, replace=True)
+    except Exception as e:
+        print(f"[process_url] Erro ao vetorizar {req.url}: {e}")
+        return {"status": "error", "message": f"Erro ao gerar embeddings: {str(e)}"}
+
+    result = {"status": "success", "chunks_criados": len(chunks)}
+    if fetch_warning:
+        result["aviso"] = fetch_warning
+    return result
+
+
+@router.post("/crawl_site")
+def crawl_site(req: CrawlRequest):
+    """Rastreia uma URL e retorna todos os links internos do mesmo domínio."""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+    }
+    try:
+        resp = requests.get(req.url, headers=headers, timeout=15, allow_redirects=True)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, 'html.parser')
+
+        parsed_base = urlparse(req.url)
+        base_domain = parsed_base.netloc
+        base_clean  = req.url.rstrip('/')
+
+        found = set()
+        for a in soup.find_all('a', href=True):
+            href = a['href'].strip()
+            if not href or href.startswith('#') or href.startswith('mailto:') or href.startswith('javascript:'):
+                continue
+            full = urljoin(req.url, href)
+            p = urlparse(full)
+            if p.netloc != base_domain or p.scheme not in ('http', 'https'):
+                continue
+            clean = f"{p.scheme}://{p.netloc}{p.path}".rstrip('/')
+            if clean and clean != base_clean:
+                found.add(clean)
+
+        urls = sorted(found)[:req.max_pages]
+        return {"status": "success", "base_url": req.url, "urls": urls, "total": len(urls)}
+
+    except requests.exceptions.RequestException as e:
+        return {"status": "error", "message": f"Erro ao acessar a URL: {str(e)}"}
+    except Exception as e:
+        print(f"[crawl_site] Erro: {e}")
         return {"status": "error", "message": str(e)}

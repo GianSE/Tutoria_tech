@@ -18,6 +18,7 @@ import {
   Globe,
   Link,
   RotateCw,
+  Network,
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import Modal from "../components/Modal";
@@ -50,6 +51,12 @@ export default function ConfiguracoesIAPage() {
   const [showApiKeyHelp, setShowApiKeyHelp] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [addingUrl, setAddingUrl] = useState(false);
+  const [showCrawlModal, setShowCrawlModal] = useState(false);
+  const [crawlUrl, setCrawlUrl] = useState("");
+  const [crawling, setCrawling] = useState(false);
+  const [crawledUrls, setCrawledUrls] = useState([]);
+  const [selectedUrls, setSelectedUrls] = useState(new Set());
+  const [addingCrawled, setAddingCrawled] = useState(false);
 
 
   const [success, setSuccess] = useState("");
@@ -308,6 +315,64 @@ export default function ConfiguracoesIAPage() {
     };
   }, [processingId]);
 
+  async function handleCrawl(e) {
+    e.preventDefault();
+    if (!crawlUrl.startsWith("http")) return;
+    setCrawling(true);
+    setCrawledUrls([]);
+    setSelectedUrls(new Set());
+    setError("");
+    try {
+      const res = await apiFetch("/api/settings/knowledge/crawl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: crawlUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Erro ao rastrear.");
+      setCrawledUrls(data.urls ?? []);
+      setSelectedUrls(new Set(data.urls ?? []));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCrawling(false);
+    }
+  }
+
+  async function handleAddCrawled() {
+    const urls = [...selectedUrls];
+    if (!urls.length) return;
+    setAddingCrawled(true);
+    setError("");
+    try {
+      const res = await apiFetch("/api/settings/knowledge/crawl-add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Erro ao adicionar.");
+      await loadKnowledge();
+      setShowCrawlModal(false);
+      setCrawlUrl("");
+      setCrawledUrls([]);
+      setSelectedUrls(new Set());
+      setSuccess(data.message ?? "URLs adicionadas com sucesso!");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAddingCrawled(false);
+    }
+  }
+
+  function toggleUrl(url) {
+    setSelectedUrls(prev => {
+      const next = new Set(prev);
+      next.has(url) ? next.delete(url) : next.add(url);
+      return next;
+    });
+  }
+
   async function handleAddUrl(e) {
     e.preventDefault();
     const url = urlInput.trim();
@@ -538,7 +603,7 @@ export default function ConfiguracoesIAPage() {
           onChange={handleFileChange}
         />
 
-        {/* Upload de arquivo */}
+        {/* Upload de arquivo + Rastrear site */}
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
@@ -549,6 +614,13 @@ export default function ConfiguracoesIAPage() {
             {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
             {uploading ? "Enviando..." : "Fazer Upload de Arquivo"}
           </button>
+          <button
+            type="button"
+            onClick={() => { setShowCrawlModal(true); setCrawledUrls([]); setSelectedUrls(new Set()); setCrawlUrl(""); }}
+            className="px-4 py-2 rounded-xl border border-violet-600/40 text-violet-300 hover:bg-violet-500/10 text-sm flex items-center gap-2"
+          >
+            <Network size={14} /> Rastrear páginas do site
+          </button>
         </div>
 
         {/* Adicionar URL */}
@@ -556,7 +628,7 @@ export default function ConfiguracoesIAPage() {
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
             <Globe size={12} /> Adicionar URL / Site
           </p>
-          <form onSubmit={handleAddUrl} className="flex gap-2">
+          <form onSubmit={handleAddUrl} className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Link size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
@@ -570,7 +642,7 @@ export default function ConfiguracoesIAPage() {
             <button
               type="submit"
               disabled={addingUrl || !urlInput}
-              className="px-4 py-2 rounded-xl border border-violet-600/40 text-violet-300 hover:bg-violet-500/10 text-sm flex items-center gap-2 disabled:opacity-40 shrink-0"
+              className="px-4 py-2.5 rounded-xl border border-violet-600/40 text-violet-300 hover:bg-violet-500/10 text-sm flex items-center justify-center gap-2 disabled:opacity-40 sm:shrink-0"
             >
               {addingUrl ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />}
               {addingUrl ? "Adicionando..." : "Adicionar URL"}
@@ -625,89 +697,93 @@ export default function ConfiguracoesIAPage() {
               return (
               <div
                 key={doc.id}
-                className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 flex items-center gap-3"
+                className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 space-y-2.5"
               >
-                {isUrl
-                  ? <Globe size={16} className="text-violet-400 flex-shrink-0" />
-                  : <FileText size={16} className="text-slate-400 flex-shrink-0" />
-                }
-                <div className="min-w-0 flex-1">
-                  {isUrl ? (
-                    <a href={doc.filename} target="_blank" rel="noreferrer"
-                      className="text-violet-300 text-sm font-medium truncate hover:underline flex items-center gap-1"
-                      title="Abrir URL">
-                      <span className="truncate">{displayName}</span>
-                      <ExternalLink size={11} className="shrink-0" />
-                    </a>
-                  ) : doc.fileUrl ? (
-                    <a href={doc.fileUrl} target="_blank" rel="noreferrer"
-                      className="text-slate-100 text-sm font-medium truncate hover:underline">
-                      {displayName}
-                    </a>
-                  ) : (
-                    <p className="text-slate-100 text-sm font-medium truncate">{displayName}</p>
-                  )}
-                  <p className="text-slate-500 text-xs">
-                    {isUrl ? "URL" : "Arquivo"} · Adicionado em {formatDate(doc.createdAt)}
-                  </p>
-                  {isDone && (
-                    <button
-                      onClick={() => handleViewChunks(doc)}
-                      className="text-violet-400 hover:text-violet-300 text-[10px] font-bold uppercase tracking-wider mt-1"
-                    >
-                      Ver Conteúdo Processado
-                    </button>
-                  )}
+                {/* Linha 1: ícone + nome + lixeira */}
+                <div className="flex items-start gap-2">
+                  <div className="shrink-0 mt-0.5">
+                    {isUrl
+                      ? <Globe size={15} className="text-violet-400" />
+                      : <FileText size={15} className="text-slate-400" />
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {isUrl ? (
+                      <a href={doc.filename} target="_blank" rel="noreferrer"
+                        className="text-violet-300 text-sm font-medium hover:underline flex items-center gap-1 min-w-0"
+                        title={doc.filename}>
+                        <span className="truncate block">{displayName}</span>
+                        <ExternalLink size={11} className="shrink-0" />
+                      </a>
+                    ) : doc.fileUrl ? (
+                      <a href={doc.fileUrl} target="_blank" rel="noreferrer"
+                        className="text-slate-100 text-sm font-medium truncate block hover:underline">
+                        {displayName}
+                      </a>
+                    ) : (
+                      <p className="text-slate-100 text-sm font-medium truncate">{displayName}</p>
+                    )}
+                    <p className="text-slate-500 text-xs mt-0.5">
+                      {isUrl ? "URL" : "Arquivo"} · {formatDate(doc.createdAt)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteDoc(doc.id)}
+                    disabled={deletingId === doc.id}
+                    className="shrink-0 text-slate-600 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 disabled:opacity-60 transition-colors"
+                    title="Excluir documento"
+                  >
+                    {deletingId === doc.id
+                      ? <Loader2 size={14} className="animate-spin" />
+                      : <Trash2 size={14} />
+                    }
+                  </button>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs">
-                  {isProcessing ? (
-                    <Loader2 size={14} className="animate-spin text-sky-300" />
-                  ) : isDone ? (
-                    <CheckCircle2 size={14} className="text-emerald-400" />
-                  ) : isFailed ? (
-                    <AlertCircle size={14} className="text-red-400" />
-                  ) : (
-                    <AlertCircle size={14} className="text-slate-500" />
-                  )}
-                  {statusText ? <span className={statusClass}>{statusText}</span> : null}
-                </div>
-                <div className="flex items-center gap-2">
+                {/* Linha 2: status + botões de ação */}
+                <div className="flex items-center justify-between gap-2 pl-5">
+                  <div className="flex items-center gap-1.5">
+                    {isProcessing ? (
+                      <Loader2 size={12} className="animate-spin text-sky-300" />
+                    ) : isDone ? (
+                      <CheckCircle2 size={12} className="text-emerald-400" />
+                    ) : isFailed ? (
+                      <AlertCircle size={12} className="text-red-400" />
+                    ) : (
+                      <AlertCircle size={12} className="text-slate-500" />
+                    )}
+                    <span className={`text-xs ${statusClass}`}>{statusText}</span>
+                    {isDone && (
+                      <button
+                        onClick={() => handleViewChunks(doc)}
+                        className="text-violet-400 hover:text-violet-300 text-[10px] font-bold uppercase tracking-wider ml-1"
+                      >
+                        Ver chunks
+                      </button>
+                    )}
+                  </div>
+
                   {(isProcessing || isQueued) ? (
                     <button
                       type="button"
                       onClick={() => cancelReprocess(doc.id)}
-                      className="px-3 py-1.5 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-xs flex items-center gap-2"
-                      title="Cancelar vetorizacao"
+                      className="px-2.5 py-1 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-xs flex items-center gap-1.5 shrink-0"
                     >
-                      <X size={12} />
-                      Cancelar
+                      <X size={11} /> Cancelar
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => enqueueReprocess(doc.id)}
-                      className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800 text-xs flex items-center gap-2"
+                      className="px-2.5 py-1 rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800 text-xs flex items-center gap-1.5 shrink-0"
                       title={isUrl ? "Reler e atualizar conteúdo da URL" : "Vetorizar este arquivo"}
                     >
-                      {isUrl ? <RotateCw size={12} /> : <RefreshCcw size={12} />}
+                      {isUrl ? <RotateCw size={11} /> : <RefreshCcw size={11} />}
                       {isUrl ? (isDone ? "Atualizar" : "Vetorizar") : (isDone ? "Reprocessar" : "Vetorizar")}
                     </button>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteDoc(doc.id)}
-                  disabled={deletingId === doc.id}
-                  className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 disabled:opacity-60"
-                  title="Excluir documento"
-                >
-                  {deletingId === doc.id ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Trash2 size={16} />
-                  )}
-                </button>
               </div>
             );
             })
@@ -757,6 +833,84 @@ export default function ConfiguracoesIAPage() {
         )}
       </Modal>
       
+      {/* ─── Modal: Rastrear páginas do site ─────────────────────────────────── */}
+      <Modal isOpen={showCrawlModal} onClose={() => setShowCrawlModal(false)} title="Rastrear páginas do site" size="md">
+        <div className="space-y-4">
+          <p className="text-slate-400 text-sm">
+            Informe a URL base do site. O sistema descobrirá automaticamente todas as páginas internas e você escolhe quais adicionar à base de conhecimento da Rose.
+          </p>
+
+          {/* Input URL base */}
+          <form onSubmit={handleCrawl} className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Network size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type="url"
+                placeholder="https://meninas.sbc.org.br/"
+                className="input-field pl-9 text-sm"
+                value={crawlUrl}
+                onChange={(e) => setCrawlUrl(e.target.value)}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={crawling || !crawlUrl}
+              className="px-4 py-2.5 rounded-xl border border-violet-600/40 text-violet-300 hover:bg-violet-500/10 text-sm flex items-center justify-center gap-2 disabled:opacity-40 sm:shrink-0"
+            >
+              {crawling ? <Loader2 size={14} className="animate-spin" /> : <Network size={14} />}
+              {crawling ? "Rastreando..." : "Rastrear"}
+            </button>
+          </form>
+
+          {/* Lista de URLs encontradas */}
+          {crawledUrls.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-300 font-semibold">
+                  {crawledUrls.length} página{crawledUrls.length !== 1 ? "s" : ""} encontrada{crawledUrls.length !== 1 ? "s" : ""}
+                </p>
+                <div className="flex gap-3 text-xs">
+                  <button onClick={() => setSelectedUrls(new Set(crawledUrls))} className="text-violet-400 hover:text-violet-300">Selecionar todas</button>
+                  <button onClick={() => setSelectedUrls(new Set())} className="text-slate-500 hover:text-slate-300">Limpar</button>
+                </div>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+                {crawledUrls.map((url) => (
+                  <label key={url} className="flex items-start gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-800/60 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedUrls.has(url)}
+                      onChange={() => toggleUrl(url)}
+                      className="mt-0.5 accent-violet-500 shrink-0"
+                    />
+                    <span className="text-slate-300 text-xs break-all leading-relaxed">{url}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                <span className="text-xs text-slate-500">{selectedUrls.size} selecionada{selectedUrls.size !== 1 ? "s" : ""}</span>
+                <button
+                  onClick={handleAddCrawled}
+                  disabled={selectedUrls.size === 0 || addingCrawled}
+                  className="btn-primary flex items-center gap-2 disabled:opacity-40 text-sm"
+                >
+                  {addingCrawled ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />}
+                  {addingCrawled ? "Adicionando..." : `Adicionar ${selectedUrls.size} página${selectedUrls.size !== 1 ? "s" : ""}`}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!crawling && crawlUrl && crawledUrls.length === 0 && (
+            <p className="text-slate-500 text-sm text-center py-4">
+              Clique em "Rastrear" para descobrir as páginas do site.
+            </p>
+          )}
+        </div>
+      </Modal>
+
       {/* ─── Modal: Ajuda com a API Key ────────────────────────────────────────── */}
       <Modal
         isOpen={showApiKeyHelp}
