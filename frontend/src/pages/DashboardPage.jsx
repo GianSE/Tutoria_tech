@@ -306,7 +306,7 @@ function AdminDashboard() {
               <Star size={16} className="text-pink-400" />
               Fases das Equipes
             </h3>
-            <Link to="/tutorias" className="text-xs text-violet-400 hover:text-violet-300 font-medium flex items-center gap-1 transition-colors">
+            <Link to="/equipes" className="text-xs text-violet-400 hover:text-violet-300 font-medium flex items-center gap-1 transition-colors">
               Ver Equipes <ArrowRight size={12} />
             </Link>
           </div>
@@ -502,8 +502,8 @@ function MentoraDashboard() {
       {/* Métricas rápidas */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {[
-          { label: "Meus Times",       value: loading ? null : myTeams.length,    icon: BookOpen,    gradient: "from-violet-600 to-violet-800", glow: "shadow-violet-500/20", onClick: () => navigate("/tutorias") },
-          { label: "Alunas no Total",  value: loading ? null : totalStudents,     icon: Users,       gradient: "from-pink-600 to-rose-700",    glow: "shadow-pink-500/20",   onClick: () => navigate("/tutorias") },
+          { label: "Meus Times",       value: loading ? null : myTeams.length,    icon: BookOpen,    gradient: "from-violet-600 to-violet-800", glow: "shadow-violet-500/20", onClick: () => navigate("/equipes") },
+          { label: "Alunas no Total",  value: loading ? null : totalStudents,     icon: Users,       gradient: "from-pink-600 to-rose-700",    glow: "shadow-pink-500/20",   onClick: () => navigate("/equipes") },
           { label: "Progresso Geral",  value: loading ? null : "Ver",             icon: TrendingUp,  gradient: "from-sky-600 to-blue-700",     glow: "shadow-sky-500/20",    onClick: () => navigate("/progresso") },
         ].map((c) => <StatCard key={c.label} {...c} loading={loading} />)}
       </div>
@@ -516,7 +516,7 @@ function MentoraDashboard() {
               <BookOpen size={16} className="text-violet-400" />
               Meus Times
             </h3>
-            <Link to="/tutorias" className="text-xs text-violet-400 hover:text-violet-300 font-medium flex items-center gap-1 transition-colors">
+            <Link to="/equipes" className="text-xs text-violet-400 hover:text-violet-300 font-medium flex items-center gap-1 transition-colors">
               Gerenciar <ArrowRight size={12} />
             </Link>
           </div>
@@ -531,7 +531,7 @@ function MentoraDashboard() {
             <EmptyState compact icon={BookOpen}
               title="Nenhum time atribuído"
               description="Você ainda não possui equipes. Crie uma em Tutorias."
-              action={{ label: "Ir para Tutorias", onClick: () => navigate("/tutorias") }} />
+              action={{ label: "Ir para Equipes", onClick: () => navigate("/equipes") }} />
           ) : (
             <div className="space-y-3">
               {myTeams.map((team) => (
@@ -609,7 +609,7 @@ function AlunaDashboard() {
             <EmptyState icon={BookOpen}
               title="Você não está em nenhum time"
               description="Use o código de acesso fornecido pela sua mentora para entrar em um time."
-              action={{ label: "Ir para Tutorias", onClick: () => navigate("/tutorias") }} />
+              action={{ label: "Ir para Equipes", onClick: () => navigate("/equipes") }} />
           ) : (
             <div className="space-y-5">
               {teams.map((team) => {

@@ -13,7 +13,6 @@ Visão técnica completa da arquitetura da plataforma **Tutoria Tech**, uma apli
 - [Fluxo da IA Rose (RAG)](#fluxo-da-ia-rose-rag)
 - [Armazenamento de Arquivos](#armazenamento-de-arquivos)
 - [Modelo de Dados](#modelo-de-dados)
-- [Documentação Detalhada do Banco de Dados](DATABASE.md)
 - [Controle de Acesso (RBAC)](#controle-de-acesso-rbac)
 - [Estrutura de Diretórios](#estrutura-de-diretórios)
 
@@ -21,7 +20,7 @@ Visão técnica completa da arquitetura da plataforma **Tutoria Tech**, uma apli
 
 ## Visão Geral
 
-O Tutoria Tech é uma aplicação **full-stack containerizada**, dividida em microserviços independentes que se comunicam por uma rede Docker interna (`tutoria-network`). A separação em múltiplos compose files permite que cada camada seja atualizada e reconstruída sem impactar as demais.
+O Tutoria Tech é uma aplicação **full-stack containerizada**, dividida em microserviços independentes que se comunicam por uma rede Docker interna (`tutoria-network`).
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -60,109 +59,70 @@ O Tutoria Tech é uma aplicação **full-stack containerizada**, dividida em mic
 | **Armazenamento** | MinIO (S3-compatível) | Upload e acesso a arquivos |
 | **IA Generativa** | Google Gemini (via SDK Python) | LLM para geração de respostas |
 | **Infraestrutura** | Docker Compose | Orquestração dos containers |
-| **Túnel (opcional)** | ngrok | Exposição pública para testes |
 
 ---
 
 ## Arquitetura em Camadas
 
-O projeto é organizado em **3 camadas independentes**, cada uma com seu próprio compose file:
+O projeto oferece dois modos de execução:
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│               tutoria-network (bridge Docker)                │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐    │
-│  │  docker-compose.infra.yml  — INFRAESTRUTURA          │    │
-│  │                                                      │    │
-│  │  ┌──────────────────┐   ┌──────────────────┐        │    │
-│  │  │   PostgreSQL 16  │   │      MinIO        │        │    │
-│  │  │   + pgvector     │   │   (S3-like)       │        │    │
-│  │  │   porta: 5432 ★  │   │   porta: 9000/    │        │    │
-│  │  │                  │   │          9001     │        │    │
-│  │  └──────────────────┘   └──────────────────┘        │    │
-│  └──────────────────────────────────────────────────────┘    │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐    │
-│  │  docker-compose.ia.yml  — SERVIÇO DE IA              │    │
-│  │                                                      │    │
-│  │  ┌──────────────────────────────────┐               │    │
-│  │  │   Python IA (FastAPI + Uvicorn)  │               │    │
-│  │  │   porta interna: 8000            │               │    │
-│  │  └──────────────────────────────────┘               │    │
-│  └──────────────────────────────────────────────────────┘    │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐    │
-│  │  docker-compose.app.yml  — APLICAÇÃO                   │    │
-│  │                                                      │    │
-│  │  ┌───────────────┐   ┌───────────────┐              │    │
-│  │  │   Backend     │   │   Frontend    │              │    │
-│  │  │   (Fastify)   │   │   (Vite)      │              │    │
-│  │  │   porta: 3001★│   │   porta: 5173★│              │    │
-│  │  │   porta: 5555★│   │               │              │    │
-│  │  └───────────────┘   └───────────────┘              │    │
-│  └──────────────────────────────────────────────────────┘    │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐    │
-│  │  docker-compose.app.yml  — APLICAÇÃO                   │    │
-│  │                                                      │    │
-│  │  ┌───────────────┐   ┌───────────────┐              │    │
-│  │  │   Backend     │   │   Frontend    │              │    │
-│  │  │   (Fastify)   │   │   (Vite)      │              │    │
-│  │  │   porta: 3001 │   │   porta: 5173★│              │    │
-│  │  └───────────────┘   └───────────────┘              │    │
-│  └──────────────────────────────────────────────────────┘    │
-│                                                              │
-│  ★ = Porta exposta ao host (localhost)                       │
-└──────────────────────────────────────────────────────────────┘
+### Modo Completo (Recomendado)
+
+```powershell
+docker compose -f docker-compose.full.yml up -d --build
 ```
 
-### Por que separar em compose files?
+Um único arquivo sobe todos os 5 serviços na ordem correta, com `depends_on` configurado:
 
-| Compose | Serviços | Quando usar |
-| :--- | :--- | :--- |
-| `docker-compose.infra.yml` | PostgreSQL, MinIO | **Obrigatório** — primeiro a subir |
-| `docker-compose.app.yml` | Backend, Frontend | **Obrigatório** — segundo a subir |
-| `docker-compose.ia.yml` | Python IA (FastAPI) | Opcional — habilita o chat com a Rose |
+```
+db (healthy) ──┐
+               ├──► python-ia ──► backend ──► frontend
+minio (healthy)┘
+```
+
+### Modo por Camadas (Desenvolvimento)
+
+| Compose | Serviços | Ordem |
+| :--- | :--- | :---: |
+| `docker-compose.infra.yml` | PostgreSQL, MinIO | 1º |
+| `docker-compose.ia.yml` | Python IA (FastAPI) | 2º |
+| `docker-compose.app.yml` | Backend, Frontend | 3º |
 
 ---
 
 ### Mecanismo de Proxy (Vite)
 
-Para manter a segurança e evitar a exposição de múltiplas portas ao host (Windows), o sistema utiliza o **Vite Proxy**. 
-
-*   O navegador do usuário envia requisições de API para `http://localhost:5173/api`.
-*   O servidor de desenvolvimento do Vite intercepta essas chamadas e as redireciona internamente para `http://backend:3001`.
-*   Isso permite que o Backend permaneça "escondido" (usando apenas `expose` no Docker) e resolve problemas de CORS sem necessidade de um Nginx em ambiente de desenvolvimento.
+O navegador envia requisições de API para `http://localhost:5173/api`. O servidor Vite intercepta e redireciona internamente para `http://backend:3001`. Isso mantém o Backend protegido (sem porta exposta ao host) e evita problemas de CORS em desenvolvimento.
 
 ---
 
 ## Comunicação entre Serviços
 
-Todos os containers se comunicam pela rede interna `tutoria-network`. As chamadas usam o **nome do serviço** como hostname (resolução DNS interna do Docker).
+Todos os containers se comunicam pela rede interna `tutoria-network`:
 
 ```
 Frontend (React)
     │
-    │  REST (http://backend:3001)   ← dentro da rede Docker
+    │  REST (http://backend:3001)
     ▼
 Backend (Fastify)
     ├─── Prisma ORM ──────────────► PostgreSQL (db:5432)
-    ├─── MinIO SDK ───────────────► MinIO (minio:9000)
-    └─── fetch/axios ─────────────► Python IA (python-ia:8000)
+    ├─── S3 SDK (@aws-sdk) ───────► MinIO (minio:9000)
+    └─── fetch ───────────────────► Python IA (python-ia:8000)
 
 Python IA (FastAPI)
     ├─── psycopg2 ────────────────► PostgreSQL (db:5432) — pgvector
-    └─── MinIO SDK ───────────────► MinIO (minio:9000)
+    ├─── MinIO SDK (boto3) ───────► MinIO (minio:9000)
+    └─── Google Gemini SDK ───────► API Gemini (internet)
 ```
 
-**Portas expostas ao host (localhost):**
+**Portas expostas ao host:**
 
-| Container | Porta Host | Protocolo | Uso |
-| :--- | :--- | :--- | :--- |
-| `tutoria_frontend` | 5173 | HTTP | Acesso pelo navegador |
-| `tutoria_backend` | 3001 | HTTP | API REST (Opcional p/ Debug) |
-| `tutoria_db` | 5432 | TCP | Clientes SQL (Opcional p/ Debug) |
+| Container | Porta | Uso |
+| :--- | :--- | :--- |
+| `tutoria_frontend` | 5173 | Acesso pelo navegador |
+| `tutoria_db` | 5432 | Clientes SQL (debug) |
+| `tutoria_minio` | 9000 / 9001 | API S3 / Console web |
 
 ---
 
@@ -171,132 +131,151 @@ Python IA (FastAPI)
 ```
 1. Usuário faz POST /api/auth/login  →  Backend
 2. Backend valida credenciais no PostgreSQL via Prisma
-3. Backend gera JWT assinado com JWT_SECRET
-4. Frontend armazena o token (localStorage/context)
-5. Todas as requisições subsequentes enviam Bearer <token>
+3. Backend gera JWT assinado (8h de validade)
+4. Frontend armazena token no localStorage (AuthContext)
+5. Todas as requisições enviam: Authorization: Bearer <token>
 6. Backend valida o token e extrai o perfil (role: ADMIN | MENTORA | ALUNA)
-7. Middleware de RBAC verifica permissões por rota
+7. Middleware RBAC (requireRole) verifica permissões por rota
 ```
 
-O JWT carrega:
-- `id` do usuário
-- `role` (ADMIN, MENTORA, ALUNA)
-- `tutoraId` (para mentoras, associação com equipe)
+O JWT carrega: `id`, `email`, `role`.
+
+**Admin pode impersonar** outros usuários para testar diferentes visões (token de 2h).
 
 ---
 
 ## Fluxo da IA Rose (RAG)
 
-A Rose é uma assistente de IA implementada com **RAG (Retrieval-Augmented Generation)**:
+A Rose implementa **RAG (Retrieval-Augmented Generation)** com suporte a arquivos e URLs:
+
+### Ingestão de Conhecimento
 
 ```
-INGESTÃO DE DOCUMENTOS (feita pelo Admin):
-1. Admin faz upload de PDF via Frontend
-2. Backend envia arquivo para MinIO (bucket: materiais)
-3. Backend notifica Python IA do novo documento
-4. Python IA:
-   a. Baixa o PDF do MinIO
-   b. Extrai texto por chunks
-   c. Gera embeddings via Google Gemini
-   d. Armazena embeddings no PostgreSQL (pgvector)
+ARQUIVOS (PDF, DOCX, TXT, MD, XLSX, CSV):
+1. Admin faz upload via Frontend → Backend
+2. Backend envia arquivo ao MinIO (bucket: materiais)
+3. Backend cria registro em KnowledgeDocument
+4. Python IA busca o arquivo no MinIO, extrai texto, chunka e gera embeddings
+5. Embeddings (768 dimensões) armazenados no PostgreSQL via pgvector
 
-CONSULTA (feita pelo usuário):
-1. Usuário envia mensagem para a Rose
-2. Frontend → POST /api/ia/chat  →  Backend
-3. Backend encaminha para Python IA (python-ia:8000)
-4. Python IA:
-   a. Gera embedding da pergunta
-   b. Busca chunks relevantes no pgvector (similaridade coseno)
-   c. Monta o contexto com os chunks encontrados
-   d. Envia prompt + contexto para Google Gemini
-   e. Retorna a resposta gerada
-5. Backend devolve a resposta ao Frontend
+URLS / SITES:
+1. Admin cola uma URL no painel de Configurações da IA
+2. Backend cria registro em KnowledgeDocument com a URL como filename
+3. Python IA faz requisição HTTP à URL, extrai texto via BeautifulSoup
+4. Mesmo pipeline de chunking + embedding + pgvector
+5. Botão "Atualizar" re-lê o site e recria os embeddings
+```
+
+### Consulta (Chat com a Rose)
+
+```
+1. Usuário envia mensagem
+2. Frontend → POST /api/chat → Backend
+3. Backend carrega GEMINI_API_KEY e ROSE_SYSTEM_PROMPT do banco
+4. Backend encaminha para Python IA (python-ia:8000/chat)
+5. Python IA:
+   a. Gera embedding da pergunta via Gemini
+   b. Busca top-5 chunks por similaridade cosseno (pgvector)
+   c. Monta contexto: "--- BASE DE CONHECIMENTO ---\n{chunks}\n\nPergunta: {msg}"
+   d. Envia prompt + contexto + histórico para Gemini (gemini-2.5-flash)
+   e. Retorna resposta gerada
+6. Backend devolve ao Frontend
 ```
 
 **Componentes Python:**
 
 | Arquivo | Responsabilidade |
 | :--- | :--- |
-| `main.py` | Entrypoint FastAPI, define as rotas |
-| `ia_rose.py` | Lógica de RAG: busca vetorial + chamada ao Gemini |
-| `process_files.py` | Extração de texto e geração de embeddings de PDFs |
+| `main.py` | Entrypoint FastAPI |
+| `ia_rose.py` | Chat RAG: busca vetorial + Gemini |
+| `process_files.py` | Extração de texto de arquivos e URLs, embeddings |
 
 ---
 
 ## Armazenamento de Arquivos
 
-O MinIO é um sistema de object storage compatível com a API do Amazon S3.
-
 ```
 Frontend
     │ multipart/form-data
     ▼
-Backend (Fastify)
-    │ MinIO SDK (Node.js)
+Backend (Fastify + @aws-sdk/client-s3)
+    │
     ▼
-MinIO (minio:9000)
-    └── bucket: materiais/
-        ├── pdf/
-        ├── video/
-        ├── imagem/
-        └── ...
+MinIO (minio:9000) — bucket: materiais
+    ├── knowledge-default-*.pdf   ← documentos padrão (seed)
+    ├── knowledge-{ts}-*.pdf      ← uploads manuais de conhecimento
+    └── {ts}-*.pdf / *.mp4 ...   ← materiais de apoio
 ```
 
-- **Upload:** feito via Backend (o Frontend não acessa o MinIO diretamente)
-- **Download/Visualização:** URLs públicas geradas pelo MinIO com política de acesso público no bucket
-- **Persistência:** volume Docker `minio_data` garante que os arquivos sobrevivem a reinicializações
+- **Upload:** feito via Backend (Frontend não acessa MinIO diretamente)
+- **Acesso público:** bucket com política de leitura aberta (URLs diretas no browser)
+- **Persistência:** volume Docker `minio_data`
 
 ---
 
 ## Modelo de Dados
 
-O modelo de dados é gerenciado pelo **Prisma ORM** e implementado no **PostgreSQL**. Abaixo, um resumo simplificado das entidades principais.
-
-> [!TIP]
-> Para uma visão completa de todos os campos, tipos e diagramas ER técnicos, consulte a **[Documentação do Banco de Dados (DATABASE.md)](DATABASE.md)**.
+Gerenciado pelo **Prisma ORM** no **PostgreSQL 16**.
 
 ```
 User (users)
-├── id, name, email, password (hash), role
-└── Relacionamentos: mentor de Team, aluna de Team, presenças em Schedule
+├── id, name, email, password (bcrypt), role
+└── Relacionamentos: mentor de Team, aluna de Team, presenças, progressos
 
 Team (teams)
-├── id, nome, status, accessCode
+├── id, nome, status, accessCode, description
 ├── mentorId (FK → User)
-└── Relacionamentos: lista de alunas (Users), registros de StudentProgress
+└── Relacionamentos: alunas (Users), StudentProgress
 
-Material (materials)
-├── id, titulo, descricao, categoria, tipo
-└── Relacionamentos: lista de MaterialFile (arquivos no MinIO)
+StudentProgress (student_progress)
+├── teamId (FK), studentId (FK)
+├── stage (INICIO | DESENVOLVENDO | AVANCADO | CONCLUIDO)
+└── notes (feedback da mentora)
 
-Schedule (schedules)
-├── id, titulo, data, tipo, status, presencas (count)
-└── Relacionamentos: lista de Attendance
+Material (materials) + MaterialFile
+├── título, categoria, tipo
+└── arquivos no MinIO
 
-Knowledge (knowledge_documents & chunks)
-├── Document: filename
-└── Chunk: content, embedding (vector 768) ← Busca Semântica
+Schedule (schedules) + Attendance
+├── título, data, tipo, status, presencas
+└── Relacionamentos: Attendance (aluna × evento)
 
-Configurações (system_settings & system_options)
-├── system_settings: GEMINI_API_KEY, ROSE_PROMPT
-└── system_options: Opções dinâmicas de categorias e status
+KnowledgeDocument + KnowledgeChunk
+├── Document: filename (caminho MinIO ou URL completa)
+└── Chunk: content + embedding vector(768) ← busca semântica
+
+SystemSetting
+└── GEMINI_API_KEY, ROSE_SYSTEM_PROMPT
+
+SystemOption
+└── Opções dinâmicas: MATERIAL_CATEGORY, MATERIAL_TYPE, SCHEDULE_TYPE, TEAM_STATUS
+    (pré-populadas pelo seed com 16 opções padrão)
+
+ActivityLog
+└── Trilha de auditoria das ações na plataforma
 ```
+
+> Para diagramas ER e detalhes completos de cada tabela, veja [DATABASE.md](DATABASE.md).
 
 ---
 
 ## Controle de Acesso (RBAC)
 
-O sistema implementa **Role-Based Access Control** no backend via middleware JWT:
-
-| Recurso | Admin | Mentora | Aluna |
+| Recurso / Visão | Admin | Mentora | Aluna |
 | :--- | :---: | :---: | :---: |
-| Dashboard completo | ✅ | ✅ próprio | ✅ próprio |
+| Dashboard com KPIs globais | ✅ | ❌ | ❌ |
+| Dashboard com meus times | ❌ | ✅ | ❌ |
+| Dashboard com meu progresso | ❌ | ❌ | ✅ |
 | Gestão de Usuários | ✅ | ❌ | ❌ |
-| Criar/Gerenciar Equipes | ✅ | ✅ | ❌ |
-| Registrar Presença | ✅ | ✅ | ❌ |
+| Criar/Gerenciar Equipes | ✅ | ✅ próprias | ❌ |
+| Entrar em Equipe (código) | ❌ | ❌ | ✅ |
+| Página de Progresso (editar) | ❌ | ✅ | ❌ |
+| Página de Progresso (ver) | ❌ | ❌ | ✅ |
 | Publicar Materiais | ✅ | ✅ | ❌ |
-| Configurações de IA | ✅ | ❌ | ❌ |
+| Registrar Presença | ✅ | ✅ | ❌ |
+| Configurações de IA e Knowledge | ✅ | ❌ | ❌ |
 | Chat com a Rose | ✅ | ✅ | ✅ |
+| Impersonar usuários | ✅ | ❌ | ❌ |
 
 ---
 
@@ -304,46 +283,47 @@ O sistema implementa **Role-Based Access Control** no backend via middleware JWT
 
 ```
 Tutoria_tech/
-├── .env                          # Token ngrok (não versionado)
-├── .env.example                  # Exemplo do .env
-├── docker-compose.app.yml        # App: Backend + Frontend
-├── docker-compose.ngrok.yml      # Túnel público (opcional)
+├── docker-compose.full.yml       # Stack completa — único comando
 ├── docker-compose.infra.yml      # Infra: PostgreSQL + MinIO
 ├── docker-compose.ia.yml         # IA: Python FastAPI
+├── docker-compose.app.yml        # App: Backend + Frontend
+├── arquivos/                     # PDFs e links.txt importados como conhecimento padrão
+│   ├── ApresentaçãoMeninasDigitais.pdf
+│   ├── PosterWIT.pdf
+│   └── links.txt
+│
 ├── docs/
-│   ├── INSTALACAO.md             # Este guia de instalação
-│   └── ARQUITETURA.md            # Este documento
+│   ├── INSTALACAO.md
+│   ├── ARQUITETURA.md
+│   └── DATABASE.md
 │
 ├── backend/                      # Node.js + Fastify
 │   ├── .env.dev                  # Variáveis de ambiente (pré-configurado)
 │   ├── Dockerfile
-│   ├── package.json
 │   ├── prisma/
-│   │   ├── schema.prisma         # Modelo de dados (Prisma)
-│   │   └── seed.js               # Seed: 41 usuários, equipes, eventos
+│   │   ├── schema.prisma         # Modelo de dados
+│   │   └── seed.js               # 41 usuários, times, eventos, knowledge, SystemOptions
 │   └── src/
 │       ├── server.js             # Entrypoint Fastify
-│       ├── routes/               # Rotas da API (auth, users, equipes, IA...)
-│       ├── middlewares/          # JWT, RBAC
-│       └── docs/                 # Contexto/prompt da Rose
+│       ├── routes/               # auth, users, teams, materials, schedule,
+│       │                         # attendance, progress, dashboard, chat, settings
+│       ├── lib/                  # prisma.js, requireRole.js, activity.js
+│       └── docs/
+│           └── rose-context.md   # Prompt padrão da Rose
 │
 ├── frontend/                     # React 18 + Vite
-│   ├── Dockerfile
-│   ├── index.html
-│   ├── vite.config.js
-│   ├── package.json
 │   └── src/
-│       ├── App.jsx               # Roteamento React
-│       ├── components/           # Sidebar, TopBar, BottomNav, ChatWidget...
-│       ├── context/              # AuthContext, ChatContext
-│       ├── pages/                # Dashboard, Login, Materiais, Agenda...
-│       └── lib/
-│           └── api.js            # Cliente HTTP centralizado (fetch + JWT)
+│       ├── App.jsx               # Roteamento
+│       ├── context/              # AuthContext, ChatContext, ThemeContext, ToastContext
+│       ├── components/           # Layout, Sidebar, BottomNav, ChatWidget,
+│       │                         # Toast, EmptyState, Modal, NotificationBell
+│       └── pages/                # LoginPage, DashboardPage, TutoriasPage,
+│                                 # MateriaisPage, AgendaPage, ProgressoPage,
+│                                 # PerfilPage, UsuariosPage, ConfiguracoesIAPage,
+│                                 # ConfiguracoesPaginas
 │
 └── python-ia/                    # Python 3.11 + FastAPI
-    ├── Dockerfile
-    ├── requirements.txt
-    ├── main.py                   # Entrypoint FastAPI + rotas
-    ├── ia_rose.py                # Lógica RAG: busca vetorial + Gemini
-    └── process_files.py          # Processamento de PDFs e embeddings
+    ├── main.py                   # Entrypoint FastAPI
+    ├── ia_rose.py                # Chat RAG: busca vetorial + Gemini
+    └── process_files.py          # Processamento de arquivos e URLs + embeddings
 ```

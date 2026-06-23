@@ -32,7 +32,7 @@ export default function App() {
               <Route path="/perfil"    element={<PerfilPage />} />
 
               {/* ── Rotas comuns ───────────────────────────────────────── */}
-              <Route path="/tutorias"  element={<TutoriasPage />} />
+              <Route path="/equipes"   element={<TutoriasPage />} />
 
               {/* ── Progresso: ALUNA e MENTORA ─────────────────────────── */}
               <Route element={<PrivateRoute allowedRoles={["ALUNA", "MENTORA"]} />}>
@@ -41,7 +41,7 @@ export default function App() {
 
               {/* ── Apenas ADMIN ───────────────────────────────────────── */}
               <Route element={<PrivateRoute allowedRoles={["ADMIN"]} />}>
-                <Route path="/usuarios" element={<UsuariosPage />} />
+                <Route path="/gerenciar-usuarios" element={<UsuariosPage />} />
                 <Route path="/configuracoes-ia" element={<ConfiguracoesIAPage />} />
                 <Route path="/configuracoes-paginas" element={<ConfiguracoesPaginas />} />
               </Route>

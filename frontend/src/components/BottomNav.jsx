@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useChat } from "../context/ChatContext";
 
 const dashboard = { to: "/dashboard", label: "Home",      icon: LayoutDashboard };
-const tutorias  = { to: "/tutorias",  label: "Tutorias",  icon: BookOpen        };
+const tutorias  = { to: "/equipes",   label: "Equipes",   icon: BookOpen        };
 const materiais = { to: "/materiais", label: "Materiais", icon: FolderOpen      };
 const agenda    = { to: "/agenda",    label: "Agenda",    icon: CalendarDays    };
 const progresso = { to: "/progresso", label: "Progresso", icon: TrendingUp      };

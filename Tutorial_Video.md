@@ -1,32 +1,67 @@
 
 # Tutorial de Instalação via Vídeo
 
-Para que o sistema funcione com os comandos, eles devem ser executados na pasta Tutoria_tech
+Para um passo a passo visual completo, acesse o [Vídeo Tutorial](https://drive.google.com/file/d/1iu-f_WCb6BklwU2wRFgTo_Sw_iyqxVmK/view?usp=sharing).
 
-### 1. Download e Preparação
-1. Clique no botão **Code** no repositório.
-2. Selecione a opção **"Download ZIP"**.
-3. Extraia a pasta no seu computador.
-4. Para um passo a passo visual, siga as instruções neste [Vídeo Tutorial](https://drive.google.com/file/d/1iu-f_WCb6BklwU2wRFgTo_Sw_iyqxVmK/view?usp=sharing).
+> Todos os comandos abaixo devem ser executados **dentro da pasta `Tutoria_tech`**.
 
-Comandos do docker (inclusos na documentação do projeto, que detalha a instalação).
+---
 
-### 2. Subindo os Serviços com Docker
-Os comandos abaixo inicializam toda a infraestrutura da aplicação. Execute-os no seu terminal (lembre-se de estar dentro da pasta `Tutoria_tech`):
+### 1. Pré-requisitos
+
+- [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/) (com WSL 2 habilitado)
+- [Git](https://git-scm.com/downloads/win)
+
+---
+
+### 2. Clonar o Repositório
 
 ```bash
-# 1. Sobe a infraestrutura (Banco de dados, MinIO, etc.)
-docker compose -f docker-compose.infra.yml up -d --build
-
-# 2. Sobe o backend e frontend da aplicação
-docker compose -f docker-compose.app.yml up -d --build
-
-# 3. Sobe o serviço de Inteligência Artificial
-docker compose -f docker-compose.ia.yml up -d --build
+git clone https://github.com/GianSE/Tutoria_tech.git
+cd Tutoria_tech
 ```
 
-### 3. Acesso à Aplicação
+---
 
-Assim que os contêineres estiverem rodando sem erros, a interface principal estará disponível no seu navegador:
+### 3. Subir toda a Stack com um Único Comando
 
-- **Frontend (Interface Principal):** [http://localhost:5173](http://localhost:5173)
+```bash
+docker compose -f docker-compose.full.yml up -d --build
+```
+
+Aguarde todos os 5 containers ficarem `running`. Na primeira execução o banco é criado, o seed é executado e os dados de exemplo já estão disponíveis.
+
+---
+
+### 4. Acesso à Aplicação
+
+| Endereço | Descrição |
+| :--- | :--- |
+| http://localhost:5173 | **Interface principal** |
+| http://localhost:9001 | Painel MinIO (minioadmin / minioadmin) |
+
+---
+
+### 5. Logins de Teste
+
+Na tela de login, use os **botões de acesso rápido** ou entre manualmente:
+
+| Perfil | E-mail | Senha |
+| :--- | :--- | :--- |
+| Admin | `admin@projeto.com` | `admin` |
+| Mentora | `mentora1@tutoria.com` | `password123` |
+| Aluna | `aluna1@tutoria.com` | `password123` |
+
+---
+
+### 6. Derrubar os Containers
+
+```bash
+docker compose -f docker-compose.full.yml down
+```
+
+Para apagar todos os dados (volumes):
+
+```bash
+docker compose -f docker-compose.full.yml down -v
+```

@@ -85,7 +85,7 @@ function AlunaView({ data, loading }) {
         icon={TrendingUp}
         title="Nenhum progresso ainda"
         description="Entre em um time para começar a acompanhar sua jornada Technovation."
-        action={{ label: "Ver Tutorias", onClick: () => navigate("/tutorias") }}
+        action={{ label: "Ver Equipes", onClick: () => navigate("/equipes") }}
       />
     );
   }
@@ -183,7 +183,7 @@ function MentoraView({ data, loading, onProgressSave }) {
         icon={Users}
         title="Nenhum time atribuído"
         description="Você ainda não possui equipes. Crie uma na página Tutorias."
-        action={{ label: "Ir para Tutorias", onClick: () => navigate("/tutorias") }}
+        action={{ label: "Ir para Equipes", onClick: () => navigate("/equipes") }}
       />
     );
   }

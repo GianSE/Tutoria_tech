@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Pencil, Trash2, Search, UserCircle2, Loader2, AlertCircle, Eye, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, UserCircle2, Loader2, AlertCircle, Eye, Users, ArrowUpDown, ChevronDown } from "lucide-react";
 import Modal from "../components/Modal";
 import EmptyState from "../components/EmptyState";
 import { useAuth } from "../context/AuthContext";
@@ -21,6 +21,8 @@ export default function UsuariosPage() {
   const [users, setUsers]           = useState([]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
+  const [roleFilter, setRoleFilter] = useState("TODOS");
+  const [sortAZ, setSortAZ]         = useState(false);
   const [modalOpen, setModalOpen]   = useState(false);
   const [editingId, setEditingId]   = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
@@ -113,17 +115,20 @@ export default function UsuariosPage() {
     }
   };
 
-  const filtered = users.filter(
-    (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = users
+    .filter((u) => {
+      const matchSearch = u.name.toLowerCase().includes(search.toLowerCase()) ||
+                          u.email.toLowerCase().includes(search.toLowerCase());
+      const matchRole   = roleFilter === "TODOS" || u.role === roleFilter;
+      return matchSearch && matchRole;
+    })
+    .sort((a, b) => sortAZ ? a.name.localeCompare(b.name, "pt-BR") : 0);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Usuários</h2>
+          <h2 className="text-2xl font-bold text-white">Gerenciar Usuários</h2>
           <p className="text-slate-400 text-sm mt-0.5">Gerencie alunas, mentoras e administradores.</p>
         </div>
         <button onClick={openNew} className="btn-primary flex items-center gap-2 self-start sm:self-auto">
@@ -131,14 +136,64 @@ export default function UsuariosPage() {
         </button>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-        <input
-          type="text" placeholder="Buscar por nome ou e-mail..."
-          className="input-field pl-10 text-sm"
-          value={search} onChange={(e) => setSearch(e.target.value)}
-        />
+      {/* Filtros */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        {/* Busca */}
+        <div className="relative flex-1 max-w-sm">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            type="text" placeholder="Buscar por nome ou e-mail..."
+            className="input-field pl-10 text-sm"
+            value={search} onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Filtro de papel */}
+        <div className="relative">
+          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="input-field pr-8 text-sm appearance-none min-w-[140px]"
+          >
+            <option value="TODOS">Todos os papéis</option>
+            <option value="ALUNA">Aluna</option>
+            <option value="MENTORA">Mentora</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+        </div>
+
+        {/* Ordenação A-Z */}
+        <button
+          onClick={() => setSortAZ((prev) => !prev)}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
+            sortAZ
+              ? "bg-violet-600/20 border-violet-500/40 text-violet-300"
+              : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600"
+          }`}
+          title={sortAZ ? "Ordenação A-Z ativa — clique para desativar" : "Ordenar A-Z"}
+        >
+          <ArrowUpDown size={14} />
+          A-Z
+        </button>
       </div>
+
+      {/* Contagem de resultados */}
+      {!loading && (
+        <p className="text-slate-500 text-sm">
+          {filtered.length === 0
+            ? "Nenhum usuário encontrado."
+            : <>
+                Exibindo{" "}
+                <span className="text-slate-300 font-semibold">{filtered.length}</span>
+                {" "}{filtered.length === 1 ? "usuário" : "usuários"}
+                {users.length !== filtered.length && (
+                  <span className="text-slate-600"> de {users.length} no total</span>
+                )}
+              </>
+          }
+        </p>
+      )}
 
       {/* Tabela Desktop */}
       <div className="hidden md:block card p-0 overflow-hidden">

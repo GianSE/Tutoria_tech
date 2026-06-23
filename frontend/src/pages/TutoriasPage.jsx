@@ -240,7 +240,7 @@ export default function TutoriasPage() {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Tutorias</h2>
+          <h2 className="text-2xl font-bold text-white tracking-tight">Equipes</h2>
           <p className="text-slate-400 text-sm mt-0.5">Relação de equipes, mentoras, alunas e projetos.</p>
         </div>
         <div className="flex items-center gap-3 self-start md:self-auto">

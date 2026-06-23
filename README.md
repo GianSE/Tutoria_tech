@@ -15,7 +15,21 @@
 
 ---
 
-Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento de alunas, gestão de equipes, agenda de encontros, materiais de apoio e a **Rose** — assistente de IA integrada.
+Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento de alunas, gestão de equipes, agenda de encontros, materiais de apoio e a **Rose** — assistente de IA com RAG integrada.
+
+---
+
+##  Funcionalidades
+
+| Funcionalidade | Descrição |
+| :--- | :--- |
+| **Dashboard por papel** | Visão personalizada para Admin, Mentora e Aluna |
+| **Gestão de Equipes** | Criar times, adicionar alunas, código de acesso para auto-entrada |
+| **Progresso das Alunas** | Acompanhamento por etapas (Início → Desenvolvendo → Avançado → Concluído) |
+| **Materiais de Apoio** | Upload de arquivos com categorias e tipos configuráveis |
+| **Agenda de Eventos** | 4 tipos de encontro com controle de presença |
+| **Rose IA (RAG)** | Assistente com base de conhecimento em PDFs, documentos e URLs |
+| **Configurações Dinâmicas** | Categorias, tipos e status configuráveis pelo Admin |
 
 ---
 
@@ -44,30 +58,32 @@ Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento
 
 ##  Pré-requisitos
 
-- **Docker** & **Git**
+- **Docker Desktop** (com WSL 2) & **Git**
 
 ---
 
 ##  Início Rápido
 
 ```powershell
-# 0º — Clonar o repositório
-git clone https://github.com/GianSE/Tutoria_tech
+# 1. Clonar o repositório
+git clone https://github.com/GianSE/Tutoria_tech.git
 cd Tutoria_tech
 
-# 1º — infraestrutura (banco + storage)
-docker compose -f docker-compose.infra.yml up -d
-
-# 2º — aplicação (backend + frontend)
-docker compose -f docker-compose.app.yml up -d --build
-
-# 3º — IA Rose (FastAPI + Gemini)
-docker compose -f docker-compose.ia.yml up -d --build
+# 2. Subir toda a stack com um único comando
+docker compose -f docker-compose.full.yml up -d --build
 ```
 
 Acesse em: **http://localhost:5173**
 
-Login de teste: `admin@projeto.com` / `admin`
+### Logins de Teste
+
+Na tela de login, clique nos **botões de acesso rápido** ou entre manualmente:
+
+| Perfil | E-mail | Senha |
+| :--- | :--- | :--- |
+| Admin | `admin@projeto.com` | `admin` |
+| Mentora | `mentora1@tutoria.com` | `password123` |
+| Aluna | `aluna1@tutoria.com` | `password123` |
 
 Para re-popular o banco manualmente:
 

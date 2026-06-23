@@ -195,7 +195,7 @@ export default function PerfilPage() {
             <EmptyState compact icon={Users}
               title="Sem time vinculado"
               description="Acesse Tutorias e entre em um time com o código da mentora."
-              action={{ label: "Ir para Tutorias", onClick: () => navigate("/tutorias") }}
+              action={{ label: "Ir para Equipes", onClick: () => navigate("/equipes") }}
             />
           ) : (
             <div className="space-y-3">

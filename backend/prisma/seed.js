@@ -64,6 +64,33 @@ async function main() {
     create: { name: "Beatriz Oliveira", email: "aluna1@tutoria.com", password: defaultPass, role: "ALUNA" },
   });
 
+  // Usuários nomeados específicos
+  await prisma.user.upsert({
+    where:  { email: "thalia.oliveira@tutoria.com" },
+    update: { name: "Thalia Oliveira" },
+    create: { name: "Thalia Oliveira", email: "thalia.oliveira@tutoria.com", password: defaultPass, role: "MENTORA" },
+  });
+  await prisma.user.upsert({
+    where:  { email: "gisele.rodrigues@tutoria.com" },
+    update: { name: "Gisele Rodrigues" },
+    create: { name: "Gisele Rodrigues", email: "gisele.rodrigues@tutoria.com", password: defaultPass, role: "MENTORA" },
+  });
+  await prisma.user.upsert({
+    where:  { email: "dina.rodrigues@tutoria.com" },
+    update: { name: "Dina Rodrigues" },
+    create: { name: "Dina Rodrigues", email: "dina.rodrigues@tutoria.com", password: defaultPass, role: "MENTORA" },
+  });
+  await prisma.user.upsert({
+    where:  { email: "giovana.caetano@tutoria.com" },
+    update: { name: "Giovana Caetano" },
+    create: { name: "Giovana Caetano", email: "giovana.caetano@tutoria.com", password: defaultPass, role: "ALUNA" },
+  });
+  await prisma.user.upsert({
+    where:  { email: "maria.rodrigues@tutoria.com" },
+    update: { name: "Maria Rodrigues" },
+    create: { name: "Maria Rodrigues", email: "maria.rodrigues@tutoria.com", password: defaultPass, role: "ALUNA" },
+  });
+
   console.log("✅ Usuários de demonstração garantidos.");
 
   // ── 2. Demais mentoras (2–10) ─────────────────────────────────────────────────
