@@ -1,4 +1,4 @@
-#  Tutoria Tech — Plataforma de Gestão para Programas de Mentoria
+#  Tutoria Tech — Gestão do Programa Meninas Digitais
 
 ---
 
@@ -101,12 +101,6 @@ Na tela de login, clique nos **botões de acesso rápido** ou entre manualmente:
 | Admin | `admin@projeto.com` | `admin` |
 | Mentora | `mentora1@tutoria.com` | `password123` |
 | Aluna | `aluna1@tutoria.com` | `password123` |
-
-Para re-popular o banco manualmente:
-
-```powershell
-docker exec tutoria_backend npx prisma db seed
-```
 
 > Para mais detalhes, consulte o [Guia de Instalação](docs/INSTALACAO.md).
 
