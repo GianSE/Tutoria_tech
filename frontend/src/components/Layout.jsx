@@ -9,14 +9,15 @@ import { useAuth } from "../context/AuthContext";
 import { LogOut, ShieldAlert } from "lucide-react";
 
 const PAGE_TITLES = {
-  "/dashboard": "Dashboard",
-
-  "/usuarios":  "Usuários",
-  "/tutorias":  "Tutorias",
-  "/materiais": "Materiais de Apoio",
-  "/agenda":    "Agenda de Encontros",
-  "/perfil":    "Meu Perfil",
-  "/configuracoes-ia": "Configuracao da IA",
+  "/dashboard":              "Dashboard",
+  "/usuarios":               "Usuários",
+  "/tutorias":               "Tutorias",
+  "/materiais":              "Materiais de Apoio",
+  "/agenda":                 "Agenda de Encontros",
+  "/perfil":                 "Meu Perfil",
+  "/progresso":              "Progresso",
+  "/configuracoes-ia":       "Configuração da IA",
+  "/configuracoes-paginas":  "Configurações",
 };
 
 export default function Layout() {

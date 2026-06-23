@@ -1,0 +1,157 @@
+# ═══════════════════════════════════════════════════════════════════
+#  STACK COMPLETA — Sobe todos os 5 serviços em um único comando
+#
+#  Uso:
+#    docker compose -f docker-compose.full.yml up -d --build
+#
+#  Serviços:
+#    db         — PostgreSQL 16 + pgvector  → porta 5432
+#    minio      — Object storage            → portas 9000 (API) e 9001 (console)
+#    python-ia  — FastAPI + RAG             → porta interna 8000
+#    backend    — Node.js + Fastify         → porta interna 3001
+#    frontend   — React + Vite             → porta 5173 (http://localhost:5173)
+# ═══════════════════════════════════════════════════════════════════
+
+services:
+
+  # ─────────────────────────────────────────────
+  #  BANCO DE DADOS — PostgreSQL + pgvector
+  # ─────────────────────────────────────────────
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: tutoria_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tutoriatech_user
+      POSTGRES_PASSWORD: tutoriatech_pass
+      POSTGRES_DB: tutoriatech
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - tutoria-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tutoriatech_user -d tutoriatech"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  #  ARMAZENAMENTO — MinIO
+  # ─────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: tutoria_minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - tutoria-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  #  IA — Python + FastAPI + RAG
+  # ─────────────────────────────────────────────
+  python-ia:
+    build:
+      context: ./python-ia
+      dockerfile: Dockerfile
+    container_name: tutoria_python_ia
+    restart: unless-stopped
+    environment:
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_SECURE=false
+      - MINIO_BUCKET_NAME=materiais
+      - DB_URL=postgresql://tutoriatech_user:tutoriatech_pass@db:5432/tutoriatech
+    expose:
+      - "8000"
+    networks:
+      - tutoria-network
+    volumes:
+      - ./python-ia:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────
+  #  BACKEND — Node.js + Fastify + Prisma
+  # ─────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tutoria_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.dev
+    environment:
+      - PYTHON_API_URL=http://python-ia:8000
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_USE_SSL=false
+      - MINIO_BUCKET_NAME=materiais
+      - MINIO_PUBLIC_URL=http://localhost:9000
+    command: sh -c "npx prisma generate && npx prisma db push && npx prisma db seed && npm run dev"
+    expose:
+      - "3001"
+    networks:
+      - tutoria-network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./arquivos:/app/arquivos:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      python-ia:
+        condition: service_started
+
+  # ─────────────────────────────────────────────
+  #  FRONTEND — React + Vite
+  # ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tutoria_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    networks:
+      - tutoria-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  pg_data:
+  minio_data:
+
+networks:
+  tutoria-network:
+    name: tutoria-network
+    driver: bridge

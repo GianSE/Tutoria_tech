@@ -12,7 +12,7 @@ import AgendaPage from "./pages/AgendaPage";
 import PerfilPage from "./pages/PerfilPage";
 import ConfiguracoesIAPage from "./pages/ConfiguracoesIAPage";
 import ConfiguracoesPaginas from "./pages/ConfiguracoesPaginas";
-
+import ProgressoPage from "./pages/ProgressoPage";
 
 export default function App() {
   return (
@@ -33,6 +33,11 @@ export default function App() {
 
               {/* ── Rotas comuns ───────────────────────────────────────── */}
               <Route path="/tutorias"  element={<TutoriasPage />} />
+
+              {/* ── Progresso: ALUNA e MENTORA ─────────────────────────── */}
+              <Route element={<PrivateRoute allowedRoles={["ALUNA", "MENTORA"]} />}>
+                <Route path="/progresso" element={<ProgressoPage />} />
+              </Route>
 
               {/* ── Apenas ADMIN ───────────────────────────────────────── */}
               <Route element={<PrivateRoute allowedRoles={["ADMIN"]} />}>

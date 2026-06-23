@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { UserCircle2, Lock, Save, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { UserCircle2, Lock, Save, Loader2, AlertCircle, BookOpen, Users, TrendingUp } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { apiFetch } from "../lib/api";
-
-{/* ## interage com /api/user/respectivo id do usuário                           */}
-{/* ## conexão com os endpoints do backend para leitura ou atualização de perfil */}
+import { useToast } from "../context/ToastContext";
+import EmptyState from "../components/EmptyState";
+import { useNavigate } from "react-router-dom";
 
 const ROLE_LABELS = { ADMIN: "Administrador", MENTORA: "Mentora", ALUNA: "Aluna" };
 const ROLE_STYLES = {
@@ -14,27 +14,50 @@ const ROLE_STYLES = {
   ALUNA:   "bg-slate-600/40  text-slate-300  border border-slate-600/40",
 };
 
+const STAGE_LABELS = { INICIO: "Início", DESENVOLVENDO: "Desenvolvendo", AVANCADO: "Avançado", CONCLUIDO: "Concluído" };
+const STAGE_TEXT   = { INICIO: "text-slate-400", DESENVOLVENDO: "text-sky-400", AVANCADO: "text-violet-400", CONCLUIDO: "text-emerald-400" };
+const STAGE_BG     = { INICIO: "bg-slate-700", DESENVOLVENDO: "bg-sky-600", AVANCADO: "bg-violet-600", CONCLUIDO: "bg-emerald-600" };
+
+const STATUS_TEAM_LABEL = {
+  IDEACAO: "Ideação", PROTOTIPAGEM: "Prototipagem",
+  EM_DESENVOLVIMENTO: "Em Desenvolvimento", CONCLUIDO: "Concluído",
+};
+const STATUS_TEAM_COLOR = {
+  IDEACAO: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  PROTOTIPAGEM: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+  EM_DESENVOLVIMENTO: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+  CONCLUIDO: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+};
+
 export default function PerfilPage() {
   const { user, login, token } = useAuth();
+  const { addToast } = useToast();
   const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
 
-  const [name,        setName]        = useState(user?.name  ?? "");
-  const [password,    setPassword]    = useState("");
-  const [confirmPwd,  setConfirmPwd]  = useState("");
-  const [saving,      setSaving]      = useState(false);
-  const [success,     setSuccess]     = useState(false);
-  const [error,       setError]       = useState("");
+  const [name,       setName]       = useState(user?.name ?? "");
+  const [password,   setPassword]   = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [saving,     setSaving]     = useState(false);
+  const [myData,     setMyData]     = useState(null);
+
+  useEffect(() => {
+    if (user?.role === "ALUNA") {
+      apiFetch("/api/dashboard/my-data")
+        .then((r) => r.ok ? r.json() : null)
+        .then(setMyData)
+        .catch(() => {});
+    }
+  }, [user?.role]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess(false);
 
     if (password && password !== confirmPwd) {
-      return setError("As senhas não coincidem.");
+      return addToast("As senhas não coincidem.", "error");
     }
     if (password && password.length < 4) {
-      return setError("A senha deve ter pelo menos 4 caracteres.");
+      return addToast("A senha deve ter pelo menos 4 caracteres.", "error");
     }
 
     setSaving(true);
@@ -50,14 +73,12 @@ export default function PerfilPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? "Erro ao atualizar perfil.");
 
-      // Atualiza o contexto com o novo nome
       login({ ...user, name: data.name }, token);
       setPassword("");
       setConfirmPwd("");
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 4000);
+      addToast("Perfil atualizado com sucesso!", "success");
     } catch (err) {
-      setError(err.message);
+      addToast(err.message, "error");
     } finally {
       setSaving(false);
     }
@@ -98,7 +119,7 @@ export default function PerfilPage() {
         </div>
       </div>
 
-      {/* Formulário de edição */}
+      {/* Formulário */}
       <form onSubmit={handleSubmit} className="card space-y-5">
         <h3 className="text-white font-semibold flex items-center gap-2">
           <UserCircle2 size={16} className="text-violet-400" />
@@ -150,20 +171,6 @@ export default function PerfilPage() {
           />
         </div>
 
-        {/* Feedback */}
-        {error && (
-          <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10
-                          border border-red-500/30 rounded-xl px-4 py-3">
-            <AlertCircle size={14} />{error}
-          </div>
-        )}
-        {success && (
-          <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10
-                          border border-emerald-500/30 rounded-xl px-4 py-3">
-            <CheckCircle2 size={14} /> Perfil atualizado com sucesso!
-          </div>
-        )}
-
         <div className="flex justify-end">
           <button type="submit" disabled={saving}
             className="btn-primary flex items-center gap-2 disabled:opacity-60">
@@ -171,6 +178,68 @@ export default function PerfilPage() {
           </button>
         </div>
       </form>
+
+      {/* Seção "Meu Time" para alunas */}
+      {user?.role === "ALUNA" && (
+        <div className="card space-y-4">
+          <h3 className="text-white font-semibold flex items-center gap-2">
+            <BookOpen size={16} className="text-violet-400" />
+            Meu Time
+          </h3>
+
+          {myData === null ? (
+            <div className="flex items-center gap-2 text-slate-500 text-sm py-4">
+              <Loader2 size={16} className="animate-spin" /> Carregando...
+            </div>
+          ) : (myData.teams?.length ?? 0) === 0 ? (
+            <EmptyState compact icon={Users}
+              title="Sem time vinculado"
+              description="Acesse Tutorias e entre em um time com o código da mentora."
+              action={{ label: "Ir para Tutorias", onClick: () => navigate("/tutorias") }}
+            />
+          ) : (
+            <div className="space-y-3">
+              {myData.teams.map((team) => (
+                <div key={team.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 font-bold text-xs shrink-0">
+                      {team.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-bold text-sm">{team.name}</p>
+                      <p className="text-slate-500 text-xs">Mentora: {team.mentor?.name ?? "—"}</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border hidden sm:block ${STATUS_TEAM_COLOR[team.status] ?? "text-slate-400 bg-slate-700 border-slate-600"}`}>
+                      {STATUS_TEAM_LABEL[team.status] ?? team.status}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2.5 h-2.5 rounded-full ${STAGE_BG[team.myProgress?.stage ?? "INICIO"]} shrink-0`} />
+                    <span className={`text-xs font-semibold ${STAGE_TEXT[team.myProgress?.stage ?? "INICIO"]}`}>
+                      Etapa: {STAGE_LABELS[team.myProgress?.stage ?? "INICIO"]}
+                    </span>
+                  </div>
+
+                  {team.myProgress?.notes && (
+                    <p className="text-slate-400 text-xs leading-relaxed border-t border-slate-700 pt-3">
+                      <span className="font-semibold text-violet-400">Feedback: </span>
+                      {team.myProgress.notes}
+                    </p>
+                  )}
+                </div>
+              ))}
+
+              <button
+                onClick={() => navigate("/progresso")}
+                className="text-xs text-violet-400 hover:text-violet-300 font-medium flex items-center gap-1 transition-colors"
+              >
+                <TrendingUp size={12} /> Ver progresso completo
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

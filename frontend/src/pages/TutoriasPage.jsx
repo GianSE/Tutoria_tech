@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   Users, ExternalLink, Plus, Pencil, Trash2, Loader2, AlertCircle, MessageCircle,
-  Send, Eye, Search, Filter, X, ChevronDown, LayoutGrid, List, User, Lock, UserPlus, LogIn
+  Send, Eye, Search, Filter, X, ChevronDown, LayoutGrid, List, User, Lock, UserPlus, LogIn,
+  BookOpen,
 } from "lucide-react";
 import Modal from "../components/Modal";
+import EmptyState from "../components/EmptyState";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
+import { useToast } from "../context/ToastContext";
 
 {/* ## interage com /api/teams                       */}
 {/* ## conexão com os endpoints do backend para CRUD */}
@@ -32,6 +35,7 @@ const EMPTY_FORM = {
 
 export default function TutoriasPage() {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const isAdmin = user?.role === "ADMIN";
   const isStudent = user?.role === "ALUNA";
 
@@ -50,6 +54,10 @@ export default function TutoriasPage() {
   const [joinTeam, setJoinTeam] = useState(null);
   const [joinCode, setJoinCode] = useState("");
   const [joining, setJoining] = useState(false);
+  const [directJoinOpen, setDirectJoinOpen] = useState(false);
+  const [directJoinCode, setDirectJoinCode] = useState("");
+  const [directJoining, setDirectJoining] = useState(false);
+  const [directJoinError, setDirectJoinError] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -142,6 +150,7 @@ export default function TutoriasPage() {
       if (!res.ok) throw new Error(data.message ?? "Erro ao salvar equipe.");
       await fetchTeams();
       setModalOpen(false);
+      addToast(editingId ? "Equipe atualizada com sucesso!" : "Equipe criada com sucesso!", "success");
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -161,9 +170,11 @@ export default function TutoriasPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? "Código incorreto.");
+      const teamName = joinTeam?.name ?? "time";
       await fetchTeams();
       setJoinTeam(null);
       setJoinCode("");
+      addToast(`Bem-vinda ao time ${teamName}!`, "success");
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -177,10 +188,37 @@ export default function TutoriasPage() {
     try {
       await apiFetch(`/api/teams/${confirmDel.id}`, { method: "DELETE" });
       await fetchTeams();
+      addToast("Equipe excluída.", "info");
       setConfirmDel(null);
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleDirectJoin = async (e) => {
+    e.preventDefault();
+    setDirectJoining(true);
+    setDirectJoinError("");
+    let joined = false;
+    for (const team of teams) {
+      try {
+        const res = await apiFetch(`/api/teams/${team.id}/join`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: directJoinCode }),
+        });
+        if (res.ok) {
+          await fetchTeams();
+          setDirectJoinOpen(false);
+          setDirectJoinCode("");
+          addToast(`Bem-vinda ao time ${team.name}!`, "success");
+          joined = true;
+          break;
+        }
+      } catch {}
+    }
+    if (!joined) setDirectJoinError("Código inválido. Verifique com sua mentora.");
+    setDirectJoining(false);
   };
 
   const filtered = teams.filter((team) => {
@@ -222,6 +260,27 @@ export default function TutoriasPage() {
         </div>
       </div>
 
+      {/* Banner de convite para alunas sem time */}
+      {isStudent && !loading && !teams.some(t => t.students?.some(s => s.id === user?.id)) && (
+        <div className="card border-violet-500/30 bg-violet-500/5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
+            <UserPlus size={20} className="text-violet-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-white font-semibold text-sm">Você ainda não faz parte de um time.</p>
+            <p className="text-slate-400 text-xs mt-0.5">
+              Peça o código de acesso à sua mentora e entre em um time para começar.
+            </p>
+          </div>
+          <button
+            onClick={() => { setDirectJoinOpen(true); setDirectJoinError(""); setDirectJoinCode(""); }}
+            className="btn-primary shrink-0 flex items-center gap-2 text-sm"
+          >
+            <LogIn size={16} /> Entrar com código
+          </button>
+        </div>
+      )}
+
       {/* Advanced Filters Card */}
       {showFilters && (
         <div className="card space-y-5 !p-5 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -250,6 +309,13 @@ export default function TutoriasPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => <div key={i} className="card animate-pulse h-48 bg-slate-800/20" />)}
         </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={BookOpen}
+          title="Nenhuma equipe encontrada"
+          description={search || statusFilter !== "Todos" ? "Tente ajustar os filtros de busca." : "Crie uma equipe para começar."}
+          action={!isStudent ? { label: "Nova Equipe", onClick: openNew } : undefined}
+        />
       ) : (
         <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "flex flex-col gap-3"}>
           {filtered.map((team) => {
@@ -401,15 +467,9 @@ export default function TutoriasPage() {
       {/* Edit Modal */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? "Editar Equipe" : "Nova Equipe"} size="md">
         <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 sm:col-span-1">
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Nome da Equipe</label>
-              <input type="text" required className="input-field" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
-            </div>
-            <div className="col-span-2 sm:col-span-1">
-              <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center gap-2"><Lock size={14} className="text-violet-400" /> Senha da Tutoria</label>
-              <input type="text" placeholder="Ex: tech123" className="input-field" value={form.accessCode} onChange={(e) => setForm((p) => ({ ...p, accessCode: e.target.value }))} />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Nome da Equipe</label>
+            <input type="text" required className="input-field" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
           </div>
 
           <div>
@@ -472,11 +532,37 @@ export default function TutoriasPage() {
       </Modal>
 
       <Modal isOpen={!!confirmDel} onClose={() => setConfirmDel(null)} title="Excluir Equipe" size="sm">
-        <p className="text-slate-300 text-sm mb-5">Deseja excluir a equipe <span className="font-bold text-white">{confirmDel?.name}</span>?</p>
+        <p className="text-slate-300 text-sm mb-5">Deseja excluir a equipe <span className="font-bold text-white">{confirmDel?.name}</span>? Esta ação não pode ser desfeita.</p>
         <div className="flex justify-end gap-3">
           <button onClick={() => setConfirmDel(null)} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
-          <button onClick={handleDelete} className="px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold">Excluir</button>
+          <button onClick={handleDelete} disabled={deleting} className="px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold flex items-center gap-2">
+            {deleting ? <Loader2 size={14} className="animate-spin" /> : null} Excluir
+          </button>
         </div>
+      </Modal>
+
+      {/* Modal: Entrar com código (banner da aluna) */}
+      <Modal isOpen={directJoinOpen} onClose={() => setDirectJoinOpen(false)} title="Entrar em um Time" size="sm">
+        <form onSubmit={handleDirectJoin} className="space-y-4">
+          <p className="text-slate-400 text-sm">Digite o código de acesso fornecido pela sua mentora.</p>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Código de Acesso</label>
+            <div className="relative">
+              <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input type="text" required className="input-field pl-10" placeholder="Ex: tech123"
+                value={directJoinCode} onChange={(e) => setDirectJoinCode(e.target.value)} />
+            </div>
+          </div>
+          {directJoinError && (
+            <div className="text-red-400 text-xs bg-red-500/10 p-3 rounded-lg border border-red-500/20">{directJoinError}</div>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setDirectJoinOpen(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
+            <button type="submit" disabled={directJoining} className="btn-primary flex items-center gap-2">
+              {directJoining ? <Loader2 size={15} className="animate-spin" /> : <LogIn size={15} />} Entrar
+            </button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

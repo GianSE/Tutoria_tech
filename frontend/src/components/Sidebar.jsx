@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Users, BookOpen,
-  FolderOpen, CalendarDays, Sparkles, UserCircle2, Bot, BarChart3, MessageCircle, Settings2,
+  FolderOpen, CalendarDays, Sparkles, UserCircle2, Bot, BarChart3, Settings2, TrendingUp,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -11,9 +11,8 @@ const ALL_NAV_ITEMS = [
     icon: LayoutDashboard,
     roles: ["ADMIN", "MENTORA", "ALUNA"],
   },
-
   {
-    to: "/tutorias",  label: "Tutorias",
+    to: "/tutorias", label: "Tutorias",
     icon: BookOpen,
     roles: ["ADMIN", "MENTORA", "ALUNA"],
   },
@@ -23,9 +22,34 @@ const ALL_NAV_ITEMS = [
     roles: ["ADMIN", "MENTORA", "ALUNA"],
   },
   {
-    to: "/agenda",    label: "Agenda",
+    to: "/agenda", label: "Agenda",
     icon: CalendarDays,
     roles: ["ADMIN", "MENTORA", "ALUNA"],
+  },
+  {
+    to: "/progresso", label: "Meu Progresso",
+    icon: TrendingUp,
+    roles: ["ALUNA"],
+  },
+  {
+    to: "/progresso", label: "Progresso das Alunas",
+    icon: TrendingUp,
+    roles: ["MENTORA"],
+  },
+  {
+    to: "/usuarios", label: "Usuários",
+    icon: Users,
+    roles: ["ADMIN"],
+  },
+  {
+    to: "/configuracoes-ia", label: "Config. IA",
+    icon: Bot,
+    roles: ["ADMIN"],
+  },
+  {
+    to: "/configuracoes-paginas", label: "Configurações",
+    icon: Settings2,
+    roles: ["ADMIN"],
   },
 ];
 
@@ -57,7 +81,7 @@ export default function Sidebar({ isExpanded }) {
       <nav className="flex-1 overflow-y-auto px-3 pt-2 pb-4 space-y-1">
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
-            key={to}
+            key={`${to}-${label}`}
             to={to}
             className={({ isActive }) =>
               [
@@ -90,8 +114,6 @@ export default function Sidebar({ isExpanded }) {
           </NavLink>
         ))}
       </nav>
-
-
     </aside>
   );
 }

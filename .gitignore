@@ -31,3 +31,6 @@ coverage/
 *.tsx.snap
 __pycache__
 docker-compose.ngrok.yml
+docs/roteiro
+docs/roteiro_individual
+docs/entrega

@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
-import { 
-  CalendarDays, MapPin, Clock, Plus, CheckCircle2, Pencil, Trash2, Loader2, 
+import {
+  CalendarDays, MapPin, Clock, Plus, CheckCircle2, Pencil, Trash2, Loader2,
   AlertCircle, Search, Filter, X, ChevronDown, Calendar, ExternalLink,
   ChevronLeft, ChevronRight
 } from "lucide-react";
 import Modal from "../components/Modal";
+import EmptyState from "../components/EmptyState";
 import { apiFetch } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 {/* ## interage com /api/schedules                   */}
 {/* ## conexão com os endpoints do backend para CRUD */}
@@ -56,6 +58,7 @@ function fmtDay(iso) {
 
 export default function AgendaPage() {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const canManage = ["ADMIN", "MENTORA"].includes(user?.role);
 
   const [schedules, setSchedules]           = useState([]);
@@ -134,6 +137,7 @@ export default function AgendaPage() {
       if (!res.ok) throw new Error(data.message ?? "Erro ao salvar evento.");
       await fetchSchedules();
       setModalOpen(false);
+      addToast(editingId ? "Evento atualizado!" : "Evento criado com sucesso!", "success");
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -146,6 +150,7 @@ export default function AgendaPage() {
     setDeleting(true);
     try {
       await apiFetch(`/api/schedules/${confirmDel.id}`, { method: "DELETE" });
+      addToast("Evento excluído.", "info");
       await fetchSchedules();
       setConfirmDel(null);
     } finally {
@@ -304,16 +309,14 @@ export default function AgendaPage() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="card text-center py-20 bg-slate-900/20 flex-1 flex flex-col justify-center">
-            <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-6 text-slate-600">
-              <CalendarDays size={40} />
-            </div>
-            <h3 className="text-white font-semibold text-lg">Nenhum evento encontrado</h3>
-            <p className="text-slate-500 text-sm mt-2 max-w-xs mx-auto">Tente ajustar seus filtros ou termos de pesquisa para encontrar o que procura.</p>
-            <button onClick={() => { setSearch(""); setFiltro("Todos"); setStatusFiltro("Todos"); setCurrentPage(1); }} className="btn-primary mt-8 inline-flex px-6 self-center">
-              Limpar Filtros
-            </button>
-          </div>
+          <EmptyState
+            icon={CalendarDays}
+            title="Nenhum evento encontrado"
+            description={search || filtro !== "Todos" || statusFiltro !== "Todos" ? "Tente ajustar os filtros de busca." : "Agende um encontro ou sessão de tutoria."}
+            action={search || filtro !== "Todos" || statusFiltro !== "Todos"
+              ? { label: "Limpar Filtros", onClick: () => { setSearch(""); setFiltro("Todos"); setStatusFiltro("Todos"); setCurrentPage(1); } }
+              : canManage ? { label: "Novo Evento", onClick: openNew } : undefined}
+          />
         ) : (
           <div className="space-y-3 flex-1">
             {currentItems.map((ev) => (

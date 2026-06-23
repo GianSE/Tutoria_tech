@@ -14,7 +14,10 @@ import {
   Upload,
   X,
   Search,
-  Info,
+  ExternalLink,
+  Globe,
+  Link,
+  RotateCw,
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import Modal from "../components/Modal";
@@ -45,6 +48,8 @@ export default function ConfiguracoesIAPage() {
   const [docChunks, setDocChunks] = useState([]);
   const [loadingChunks, setLoadingChunks] = useState(false);
   const [showApiKeyHelp, setShowApiKeyHelp] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [addingUrl, setAddingUrl] = useState(false);
 
 
   const [success, setSuccess] = useState("");
@@ -119,12 +124,22 @@ export default function ConfiguracoesIAPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message ?? "Falha ao testar conexao.");
+        throw new Error(data.message ?? "Chave inválida. Verifique e tente novamente.");
       }
 
-      setSuccess(data.message ?? "Conexao validada com sucesso.");
+      // Chave válida: salva automaticamente
+      const saveRes = await apiFetch("/api/settings/ai", {
+        method: "PUT",
+        body: JSON.stringify({ apiKey }),
+      });
+      if (!saveRes.ok) {
+        const saveData = await saveRes.json();
+        throw new Error(saveData.message ?? "Chave válida, mas erro ao salvar.");
+      }
+
+      setSuccess("Chave válida e salva com sucesso!");
     } catch (err) {
-      setError(err.message || "Nao foi possivel validar a chave no momento.");
+      setError(err.message || "Não foi possível validar a chave no momento.");
     } finally {
       setTesting(false);
     }
@@ -293,6 +308,34 @@ export default function ConfiguracoesIAPage() {
     };
   }, [processingId]);
 
+  async function handleAddUrl(e) {
+    e.preventDefault();
+    const url = urlInput.trim();
+    if (!url.startsWith("http")) {
+      setError("URL inválida. Deve começar com http:// ou https://");
+      return;
+    }
+    setAddingUrl(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await apiFetch("/api/settings/knowledge/url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Erro ao adicionar URL.");
+      await loadKnowledge();
+      setUrlInput("");
+      setSuccess(data.message ?? "URL adicionada! Clique em Vetorizar para processar.");
+    } catch (err) {
+      setError(err.message || "Erro ao adicionar URL.");
+    } finally {
+      setAddingUrl(false);
+    }
+  }
+
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -390,15 +433,15 @@ export default function ConfiguracoesIAPage() {
 
       <form onSubmit={handleSave} className="card space-y-5">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex items-center justify-between mb-1.5">
             <label className="block text-sm font-medium text-slate-300">Gemini API Key</label>
-            <button 
+            <button
               type="button"
               onClick={() => setShowApiKeyHelp(true)}
-              className="text-slate-500 hover:text-violet-400 transition-colors"
-              title="Como obter a chave?"
+              className="flex items-center gap-1.5 text-xs font-semibold text-violet-400 hover:text-violet-300 border border-violet-500/30 hover:border-violet-400/50 bg-violet-500/5 hover:bg-violet-500/10 px-2.5 py-1 rounded-lg transition-all"
             >
-              <Info size={14} />
+              <ExternalLink size={11} />
+              Obter chave gratuita
             </button>
           </div>
           <div className="relative">
@@ -418,9 +461,20 @@ export default function ConfiguracoesIAPage() {
               {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          <p className="text-slate-500 text-xs mt-1">
-            A chave atual e mascarada por seguranca. Se mantiver o valor mascarado, ela nao sera alterada.
-          </p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-slate-500 text-xs">
+              A chave atual é mascarada por segurança. Se mantiver o valor mascarado, ela não será alterada.
+            </p>
+            <button
+              type="button"
+              onClick={handleTestConnection}
+              disabled={testing || !apiKey}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-violet-600/40 text-violet-300 hover:bg-violet-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0 ml-4"
+            >
+              {testing ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
+              {testing ? "Testando..." : "Testar API Key"}
+            </button>
+          </div>
         </div>
 
         <div>
@@ -454,17 +508,7 @@ export default function ConfiguracoesIAPage() {
             className="px-4 py-2 rounded-xl border border-slate-700 text-slate-200 hover:bg-slate-800 text-sm flex items-center gap-2"
           >
             <RefreshCcw size={14} />
-            Restaurar Prompt Padrao
-          </button>
-
-          <button
-            type="button"
-            onClick={handleTestConnection}
-            disabled={testing}
-            className="px-4 py-2 rounded-xl border border-violet-600/40 text-violet-300 hover:bg-violet-500/10 text-sm flex items-center gap-2 disabled:opacity-60"
-          >
-            {testing ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
-            Testar Conexao
+            Restaurar Prompt Padrão
           </button>
 
           <button
@@ -473,7 +517,7 @@ export default function ConfiguracoesIAPage() {
             className="btn-primary flex items-center gap-2 disabled:opacity-60"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Salvar Configuracoes
+            Salvar Configurações
           </button>
         </div>
       </form>
@@ -494,6 +538,7 @@ export default function ConfiguracoesIAPage() {
           onChange={handleFileChange}
         />
 
+        {/* Upload de arquivo */}
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
@@ -504,6 +549,36 @@ export default function ConfiguracoesIAPage() {
             {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
             {uploading ? "Enviando..." : "Fazer Upload de Arquivo"}
           </button>
+        </div>
+
+        {/* Adicionar URL */}
+        <div className="border-t border-slate-800 pt-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+            <Globe size={12} /> Adicionar URL / Site
+          </p>
+          <form onSubmit={handleAddUrl} className="flex gap-2">
+            <div className="relative flex-1">
+              <Link size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type="url"
+                placeholder="https://exemplo.com/pagina"
+                className="input-field pl-9 text-sm"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={addingUrl || !urlInput}
+              className="px-4 py-2 rounded-xl border border-violet-600/40 text-violet-300 hover:bg-violet-500/10 text-sm flex items-center gap-2 disabled:opacity-40 shrink-0"
+            >
+              {addingUrl ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />}
+              {addingUrl ? "Adicionando..." : "Adicionar URL"}
+            </button>
+          </form>
+          <p className="text-slate-600 text-xs mt-1.5">
+            A Rose irá ler e memorizar o conteúdo desta página. Para atualizar, clique em "Reprocessar".
+          </p>
         </div>
 
         <div className="space-y-2">
@@ -542,27 +617,39 @@ export default function ConfiguracoesIAPage() {
                 ? "text-red-400"
                 : "text-slate-500";
 
+              const isUrl = doc.filename.startsWith("http");
+              const displayName = isUrl
+                ? doc.filename
+                : doc.filename.replace(/^knowledge-default-|^knowledge-\d+-/, "");
+
               return (
               <div
                 key={doc.id}
                 className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 flex items-center gap-3"
               >
-                <FileText size={16} className="text-slate-400 flex-shrink-0" />
+                {isUrl
+                  ? <Globe size={16} className="text-violet-400 flex-shrink-0" />
+                  : <FileText size={16} className="text-slate-400 flex-shrink-0" />
+                }
                 <div className="min-w-0 flex-1">
-                  {doc.fileUrl ? (
-                    <a
-                      href={doc.fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-slate-100 text-sm font-medium truncate hover:underline"
-                      title="Abrir arquivo"
-                    >
-                      {doc.filename}
+                  {isUrl ? (
+                    <a href={doc.filename} target="_blank" rel="noreferrer"
+                      className="text-violet-300 text-sm font-medium truncate hover:underline flex items-center gap-1"
+                      title="Abrir URL">
+                      <span className="truncate">{displayName}</span>
+                      <ExternalLink size={11} className="shrink-0" />
+                    </a>
+                  ) : doc.fileUrl ? (
+                    <a href={doc.fileUrl} target="_blank" rel="noreferrer"
+                      className="text-slate-100 text-sm font-medium truncate hover:underline">
+                      {displayName}
                     </a>
                   ) : (
-                    <p className="text-slate-100 text-sm font-medium truncate">{doc.filename}</p>
+                    <p className="text-slate-100 text-sm font-medium truncate">{displayName}</p>
                   )}
-                  <p className="text-slate-500 text-xs">Enviado em {formatDate(doc.createdAt)}</p>
+                  <p className="text-slate-500 text-xs">
+                    {isUrl ? "URL" : "Arquivo"} · Adicionado em {formatDate(doc.createdAt)}
+                  </p>
                   {isDone && (
                     <button
                       onClick={() => handleViewChunks(doc)}
@@ -601,10 +688,10 @@ export default function ConfiguracoesIAPage() {
                       type="button"
                       onClick={() => enqueueReprocess(doc.id)}
                       className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800 text-xs flex items-center gap-2"
-                      title="Vetorizar este arquivo"
+                      title={isUrl ? "Reler e atualizar conteúdo da URL" : "Vetorizar este arquivo"}
                     >
-                      <RefreshCcw size={12} />
-                      {isDone ? "Reprocessar" : "Vetorizar"}
+                      {isUrl ? <RotateCw size={12} /> : <RefreshCcw size={12} />}
+                      {isUrl ? (isDone ? "Atualizar" : "Vetorizar") : (isDone ? "Reprocessar" : "Vetorizar")}
                     </button>
                   )}
                 </div>
@@ -682,27 +769,33 @@ export default function ConfiguracoesIAPage() {
             Para que a assistente Rose funcione, você precisa de uma chave de API do Google Gemini.
           </p>
           
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-            <ol className="list-decimal list-inside text-sm text-slate-400 space-y-2">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+            <ol className="list-decimal list-inside text-sm text-slate-400 space-y-2.5">
               <li>Acesse o <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-violet-400 hover:underline">Google AI Studio</a>.</li>
               <li>Faça login com sua conta Google.</li>
               <li>Clique em <span className="text-slate-200">"Get API key"</span> no menu lateral.</li>
               <li>Clique em <span className="text-slate-200">"Create API key in new project"</span>.</li>
-              <li>Copie a chave gerada e cole no campo ao lado.</li>
+              <li>Copie a chave gerada e cole no campo <span className="text-slate-200">Gemini API Key</span>.</li>
+              <li>Clique em <span className="text-violet-400 font-semibold">Testar API Key</span> — se válida, a chave é <span className="text-emerald-400 font-semibold">salva automaticamente</span>.</li>
             </ol>
           </div>
 
-          <div className="flex justify-center pt-2">
-            <a 
-              href="https://aistudio.google.com/apikey" 
-              target="_blank" 
-              rel="noreferrer"
-              className="btn-primary w-full text-center py-2.5 flex items-center justify-center gap-2"
-            >
-              <Bot size={16} />
-              Ir para Google AI Studio
-            </a>
+          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-4 py-3 flex items-start gap-2">
+            <ShieldCheck size={15} className="text-emerald-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-emerald-300 leading-relaxed">
+              O botão <span className="font-bold">Testar API Key</span> valida e já salva a chave automaticamente — sem precisar clicar em salvar depois.
+            </p>
           </div>
+
+          <a
+            href="https://aistudio.google.com/apikey"
+            target="_blank"
+            rel="noreferrer"
+            className="btn-primary w-full text-center py-2.5 flex items-center justify-center gap-2"
+          >
+            <ExternalLink size={15} />
+            Ir para Google AI Studio
+          </a>
         </div>
       </Modal>
 

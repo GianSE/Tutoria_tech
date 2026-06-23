@@ -1,12 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Pencil, Trash2, Search, UserCircle2, Loader2, AlertCircle, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, UserCircle2, Loader2, AlertCircle, Eye, Users } from "lucide-react";
 import Modal from "../components/Modal";
+import EmptyState from "../components/EmptyState";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
-
-{/* ## interage com /api/users                       */}
-{/* ## conexão com os endpoints do backend para CRUD */}
-{/* ## Gerenciamento de usuários                     */}
+import { useToast } from "../context/ToastContext";
 
 const ROLE_LABELS = { ADMIN: "Admin", MENTORA: "Mentora", ALUNA: "Aluna" };
 const ROLE_STYLES = {
@@ -19,12 +17,13 @@ const EMPTY_FORM = { name: "", email: "", password: "", role: "ALUNA", birthDate
 
 export default function UsuariosPage() {
   const { impersonate } = useAuth();
+  const { addToast } = useToast();
   const [users, setUsers]           = useState([]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
   const [modalOpen, setModalOpen]   = useState(false);
   const [editingId, setEditingId]   = useState(null);
-  const [confirmDel, setConfirmDel] = useState(null); // { id, name }
+  const [confirmDel, setConfirmDel] = useState(null);
   const [form, setForm]             = useState(EMPTY_FORM);
   const [saving, setSaving]         = useState(false);
   const [deleting, setDeleting]     = useState(false);
@@ -32,7 +31,7 @@ export default function UsuariosPage() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const res = await fetch("/api/users");
+      const res = await apiFetch("/api/users");
       setUsers(await res.json());
     } finally {
       setLoading(false);
@@ -43,16 +42,13 @@ export default function UsuariosPage() {
 
   const handleImpersonate = async (targetUser) => {
     try {
-      const res = await apiFetch(`/api/auth/impersonate/${targetUser.id}`, {
-        method: "POST"
-      });
+      const res = await apiFetch(`/api/auth/impersonate/${targetUser.id}`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
-      
       impersonate(data.user, data.token);
       window.location.href = "/dashboard";
     } catch (err) {
-      alert("Erro ao imitar visão: " + err.message);
+      addToast("Erro ao imitar visão: " + err.message, "error");
     }
   };
 
@@ -82,9 +78,9 @@ export default function UsuariosPage() {
     setSaving(true);
     try {
       const body = { ...form };
-      if (editingId && !body.password) delete body.password; // não enviar senha vazia no PUT
+      if (editingId && !body.password) delete body.password;
 
-      const res = await fetch(
+      const res = await apiFetch(
         editingId ? `/api/users/${editingId}` : "/api/users",
         {
           method: editingId ? "PUT" : "POST",
@@ -96,6 +92,7 @@ export default function UsuariosPage() {
       if (!res.ok) throw new Error(data.message ?? "Erro ao salvar usuário.");
       await fetchUsers();
       setModalOpen(false);
+      addToast(editingId ? "Usuário atualizado!" : "Usuário criado com sucesso!", "success");
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -107,8 +104,9 @@ export default function UsuariosPage() {
     if (!confirmDel) return;
     setDeleting(true);
     try {
-      await fetch(`/api/users/${confirmDel.id}`, { method: "DELETE" });
+      await apiFetch(`/api/users/${confirmDel.id}`, { method: "DELETE" });
       await fetchUsers();
+      addToast("Usuário excluído.", "info");
       setConfirmDel(null);
     } finally {
       setDeleting(false);
@@ -123,18 +121,16 @@ export default function UsuariosPage() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Barra superior */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white">Usuários</h2>
           <p className="text-slate-400 text-sm mt-0.5">Gerencie alunas, mentoras e administradores.</p>
         </div>
-        <button id="btn-novo-usuario" onClick={openNew} className="btn-primary flex items-center gap-2 self-start sm:self-auto">
+        <button onClick={openNew} className="btn-primary flex items-center gap-2 self-start sm:self-auto">
           <Plus size={16} /> Novo Usuário
         </button>
       </div>
 
-      {/* Pesquisa */}
       <div className="relative max-w-sm">
         <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
         <input
@@ -144,7 +140,7 @@ export default function UsuariosPage() {
         />
       </div>
 
-      {/* Tabela (Desktop) */}
+      {/* Tabela Desktop */}
       <div className="hidden md:block card p-0 overflow-hidden">
         <table className="w-full">
           <thead>
@@ -162,8 +158,10 @@ export default function UsuariosPage() {
                 <Loader2 size={20} className="animate-spin inline mr-2" />Carregando...
               </td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={5} className="px-6 py-10 text-center text-slate-500 text-sm">
-                Nenhum usuário encontrado.
+              <tr><td colSpan={5}>
+                <EmptyState compact icon={Users} title="Nenhum usuário encontrado"
+                  description={search ? "Tente um termo diferente." : ""}
+                  action={!search ? { label: "Novo Usuário", onClick: openNew } : undefined} />
               </td></tr>
             ) : (
               filtered.map((u) => (
@@ -187,19 +185,16 @@ export default function UsuariosPage() {
                     <div className="flex items-center gap-1">
                       {u.role !== "ADMIN" && (
                         <button onClick={() => handleImpersonate(u)}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center
-                                     text-violet-400 hover:bg-violet-500/15 transition-all" title="Imitar Visão">
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-violet-400 hover:bg-violet-500/15 transition-all" title="Imitar Visão">
                           <Eye size={14} />
                         </button>
                       )}
                       <button onClick={() => openEdit(u)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center
-                                   text-slate-500 hover:bg-slate-700 hover:text-slate-200 transition-all" title="Editar">
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-700 hover:text-slate-200 transition-all" title="Editar">
                         <Pencil size={14} />
                       </button>
                       <button onClick={() => setConfirmDel({ id: u.id, name: u.name })}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center
-                                   text-slate-500 hover:bg-red-500/15 hover:text-red-400 transition-all" title="Excluir">
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-red-500/15 hover:text-red-400 transition-all" title="Excluir">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -211,7 +206,7 @@ export default function UsuariosPage() {
         </table>
       </div>
 
-      {/* Lista de Cards (Mobile) */}
+      {/* Lista Mobile */}
       <div className="grid grid-cols-1 gap-3 md:hidden">
         {loading ? (
           <div className="text-center py-10 text-slate-500">
@@ -219,9 +214,8 @@ export default function UsuariosPage() {
             Carregando usuários...
           </div>
         ) : filtered.length === 0 ? (
-          <div className="card text-center py-10 text-slate-500 text-sm italic">
-            Nenhum usuário encontrado.
-          </div>
+          <EmptyState compact icon={Users} title="Nenhum usuário encontrado"
+            action={{ label: "Novo Usuário", onClick: openNew }} />
         ) : (
           filtered.map((u) => (
             <div key={u.id} className="card p-4 space-y-4 hover:border-violet-500/30 transition-all">
@@ -239,7 +233,6 @@ export default function UsuariosPage() {
                   {ROLE_LABELS[u.role]?.toUpperCase() ?? u.role}
                 </span>
               </div>
-
               <div className="flex items-center justify-between pt-3 border-t border-slate-800/50">
                 <div className="flex items-center gap-3">
                   <button onClick={() => openEdit(u)}
@@ -251,7 +244,6 @@ export default function UsuariosPage() {
                     <Trash2 size={14} />
                   </button>
                 </div>
-
                 {u.role !== "ADMIN" && (
                   <button onClick={() => handleImpersonate(u)}
                     className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-violet-500/10 text-violet-400 text-[11px] font-black border border-violet-500/20 active:scale-95 transition-all">
@@ -264,7 +256,7 @@ export default function UsuariosPage() {
         )}
       </div>
 
-      {/* ─── Modal: Criar / Editar Usuário ─────────────────────────────────────── */}
+      {/* Modal: Criar / Editar */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)}
              title={editingId ? "Editar Usuário" : "Novo Usuário"}>
         <form onSubmit={handleSave} className="space-y-4">
@@ -298,12 +290,10 @@ export default function UsuariosPage() {
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">Data de Nascimento (opcional)</label>
             <input type="date" className="input-field"
-              value={form.birthDate}
-              onChange={(e) => setForm((p) => ({ ...p, birthDate: e.target.value }))} />
+              value={form.birthDate} onChange={(e) => setForm((p) => ({ ...p, birthDate: e.target.value }))} />
           </div>
           {formError && (
-            <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10
-                            border border-red-500/30 rounded-xl px-4 py-3">
+            <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
               <AlertCircle size={14} />{formError}
             </div>
           )}
@@ -320,7 +310,7 @@ export default function UsuariosPage() {
         </form>
       </Modal>
 
-      {/* ─── Modal: Confirmar Exclusão ──────────────────────────────────────────── */}
+      {/* Modal: Confirmar Exclusão */}
       <Modal isOpen={!!confirmDel} onClose={() => setConfirmDel(null)} title="Confirmar Exclusão" size="sm">
         <p className="text-slate-300 text-sm mb-5">
           Tem certeza que deseja excluir o usuário{" "}
@@ -333,8 +323,7 @@ export default function UsuariosPage() {
             Cancelar
           </button>
           <button onClick={handleDelete} disabled={deleting}
-            className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-500 text-white
-                       font-semibold flex items-center gap-2 transition-all disabled:opacity-60">
+            className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold flex items-center gap-2 transition-all disabled:opacity-60">
             {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
             {deleting ? "Excluindo..." : "Excluir"}
           </button>

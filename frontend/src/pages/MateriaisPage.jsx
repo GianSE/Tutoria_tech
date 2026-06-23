@@ -2,11 +2,13 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Download, BookOpen, Zap, Code2, Lightbulb, Plus, ExternalLink, Pencil, Trash2,
   Loader2, AlertCircle, Upload, X, FileText, Video, Image, FileArchive, FileCode, File,
-  Search, LayoutGrid, List, ChevronLeft, ChevronRight, Filter, ChevronDown
+  Search, LayoutGrid, List, ChevronLeft, ChevronRight, Filter, ChevronDown, FolderOpen
 } from "lucide-react";
 import Modal from "../components/Modal";
+import EmptyState from "../components/EmptyState";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
+import { useToast } from "../context/ToastContext";
 
 {/* ## interage com /api/materials                   */}
 {/* ## conexão com os endpoints do backend para CRUD */}
@@ -55,6 +57,7 @@ const EMPTY_FORM = { title: "", description: "", category: "Programação", type
 
 export default function MateriaisPage() {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const canManage = ["ADMIN", "MENTORA"].includes(user?.role);
 
   const [materials, setMaterials] = useState([]);
@@ -172,6 +175,7 @@ export default function MateriaisPage() {
       await fetchMaterials();
       setSelectedFiles([]);
       setModalOpen(false);
+      addToast(editingId ? "Material atualizado!" : "Material criado com sucesso!", "success");
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -189,9 +193,10 @@ export default function MateriaisPage() {
         throw new Error(data.message ?? "Erro ao excluir material.");
       }
       await fetchMaterials();
+      addToast("Material excluído.", "info");
       setConfirmDel(null);
     } catch (err) {
-      alert(err.message);
+      addToast(err.message, "error");
     } finally {
       setDeleting(false);
     }
@@ -373,16 +378,14 @@ export default function MateriaisPage() {
             ))}
           </div>
         ) : currentItems.length === 0 ? (
-          <div className="card text-center py-20 bg-slate-900/20 flex-1 flex flex-col justify-center">
-            <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-6 text-slate-600">
-              <FileText size={40} />
-            </div>
-            <h3 className="text-white font-semibold text-lg">Nenhum material encontrado</h3>
-            <p className="text-slate-500 text-sm mt-2 max-w-xs mx-auto">Tente ajustar seus filtros ou termos de pesquisa para encontrar o que procura.</p>
-            <button onClick={() => { setSearch(""); setCategoria("Todos"); setTypeFilter("Todos"); }} className="btn-primary mt-8 inline-flex px-6 self-center">
-              Limpar Filtros
-            </button>
-          </div>
+          <EmptyState
+            icon={FolderOpen}
+            title="Nenhum material encontrado"
+            description={search || categoria !== "Todos" || typeFilter !== "Todos" ? "Tente ajustar os filtros de busca." : "Adicione materiais de apoio para as alunas."}
+            action={search || categoria !== "Todos" || typeFilter !== "Todos"
+              ? { label: "Limpar Filtros", onClick: () => { setSearch(""); setCategoria("Todos"); setTypeFilter("Todos"); } }
+              : canManage ? { label: "Novo Material", onClick: openNew } : undefined}
+          />
         ) : (
           <div className={`flex-1 ${viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "flex flex-col gap-3"}`}>
             {currentItems.map((m) => {
