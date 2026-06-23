@@ -53,42 +53,42 @@ async function main() {
   // mentora1 — usada no botão de acesso rápido
   const mentora1 = await prisma.user.upsert({
     where:  { email: "mentora1@tutoria.com" },
-    update: { name: "Ana Silva" },
-    create: { name: "Ana Silva", email: "mentora1@tutoria.com", password: defaultPass, role: "MENTORA" },
+    update: { name: "Ana Silva", birthDate: new Date("1995-03-12") },
+    create: { name: "Ana Silva", email: "mentora1@tutoria.com", password: defaultPass, role: "MENTORA", birthDate: new Date("1995-03-12") },
   });
 
   // aluna1 — usada no botão de acesso rápido
   const aluna1 = await prisma.user.upsert({
     where:  { email: "aluna1@tutoria.com" },
-    update: { name: "Beatriz Oliveira" },
-    create: { name: "Beatriz Oliveira", email: "aluna1@tutoria.com", password: defaultPass, role: "ALUNA" },
+    update: { name: "Beatriz Oliveira", birthDate: new Date("2008-09-23") },
+    create: { name: "Beatriz Oliveira", email: "aluna1@tutoria.com", password: defaultPass, role: "ALUNA", birthDate: new Date("2008-09-23") },
   });
 
   // Usuários nomeados específicos
   await prisma.user.upsert({
     where:  { email: "thalia.oliveira@tutoria.com" },
-    update: { name: "Thalia Oliveira" },
-    create: { name: "Thalia Oliveira", email: "thalia.oliveira@tutoria.com", password: defaultPass, role: "MENTORA" },
+    update: { name: "Thalia Oliveira", birthDate: new Date("1992-07-04") },
+    create: { name: "Thalia Oliveira", email: "thalia.oliveira@tutoria.com", password: defaultPass, role: "MENTORA", birthDate: new Date("1992-07-04") },
   });
   await prisma.user.upsert({
     where:  { email: "gisele.rodrigues@tutoria.com" },
-    update: { name: "Gisele Rodrigues" },
-    create: { name: "Gisele Rodrigues", email: "gisele.rodrigues@tutoria.com", password: defaultPass, role: "MENTORA" },
+    update: { name: "Gisele Rodrigues", birthDate: new Date("1988-11-19") },
+    create: { name: "Gisele Rodrigues", email: "gisele.rodrigues@tutoria.com", password: defaultPass, role: "MENTORA", birthDate: new Date("1988-11-19") },
   });
   await prisma.user.upsert({
     where:  { email: "dina.rodrigues@tutoria.com" },
-    update: { name: "Dina Rodrigues" },
-    create: { name: "Dina Rodrigues", email: "dina.rodrigues@tutoria.com", password: defaultPass, role: "MENTORA" },
+    update: { name: "Dina Rodrigues", birthDate: new Date("1996-05-30") },
+    create: { name: "Dina Rodrigues", email: "dina.rodrigues@tutoria.com", password: defaultPass, role: "MENTORA", birthDate: new Date("1996-05-30") },
   });
   await prisma.user.upsert({
     where:  { email: "giovana.caetano@tutoria.com" },
-    update: { name: "Giovana Caetano" },
-    create: { name: "Giovana Caetano", email: "giovana.caetano@tutoria.com", password: defaultPass, role: "ALUNA" },
+    update: { name: "Giovana Caetano", birthDate: new Date("2009-02-14") },
+    create: { name: "Giovana Caetano", email: "giovana.caetano@tutoria.com", password: defaultPass, role: "ALUNA", birthDate: new Date("2009-02-14") },
   });
   await prisma.user.upsert({
     where:  { email: "maria.rodrigues@tutoria.com" },
-    update: { name: "Maria Rodrigues" },
-    create: { name: "Maria Rodrigues", email: "maria.rodrigues@tutoria.com", password: defaultPass, role: "ALUNA" },
+    update: { name: "Maria Rodrigues", birthDate: new Date("2010-08-07") },
+    create: { name: "Maria Rodrigues", email: "maria.rodrigues@tutoria.com", password: defaultPass, role: "ALUNA", birthDate: new Date("2010-08-07") },
   });
 
   console.log("✅ Usuários de demonstração garantidos.");
@@ -100,10 +100,14 @@ async function main() {
   const mentors = [mentora1];
   for (let i = 0; i < 9; i++) {
     const email = `mentora${i + 2}@tutoria.com`;
+    // Metade das mentoras com birthDate (índices pares)
+    const birthDate = i % 2 === 0
+      ? new Date(`${1985 + (i * 2)}-${String((i % 12) + 1).padStart(2, "0")}-${String((i * 3 % 27) + 1).padStart(2, "0")}`)
+      : null;
     const user = await prisma.user.upsert({
       where:  { email },
-      update: {},
-      create: { name: `${FIRST[i]} ${LAST[i]}`, email, password: defaultPass, role: "MENTORA" },
+      update: birthDate ? { birthDate } : {},
+      create: { name: `${FIRST[i]} ${LAST[i]}`, email, password: defaultPass, role: "MENTORA", birthDate },
     });
     mentors.push(user);
   }
@@ -119,10 +123,14 @@ async function main() {
   const alunas = [aluna1];
   for (let i = 0; i < 29; i++) {
     const email = `aluna${i + 2}@tutoria.com`;
+    // Metade das alunas com birthDate (índices pares); idades entre 13 e 17
+    const birthDate = i % 2 === 0
+      ? new Date(`${2007 + (i % 5)}-${String((i % 12) + 1).padStart(2, "0")}-${String((i * 2 % 27) + 1).padStart(2, "0")}`)
+      : null;
     const user = await prisma.user.upsert({
       where:  { email },
-      update: {},
-      create: { name: `${FN[i]} ${LN[i]}`, email, password: defaultPass, role: "ALUNA" },
+      update: birthDate ? { birthDate } : {},
+      create: { name: `${FN[i]} ${LN[i]}`, email, password: defaultPass, role: "ALUNA", birthDate },
     });
     alunas.push(user);
   }
@@ -393,7 +401,33 @@ async function main() {
   });
   console.log("✅ Configurações garantidas.");
 
-  // ── 10. Base de conhecimento padrão (arquivos/ e links.txt) ──────────────────
+  // ── 10. Atividades recentes (notificações de exemplo) ────────────────────────
+  const activityCount = await prisma.activityLog.count();
+  if (activityCount === 0) {
+    const sampleActivities = [
+      { description: "Nova equipe criada: DevStars (mentora: Ana Silva)",            hoursAgo: 1   },
+      { description: "Novo material publicado: \"Introdução ao Python para Iniciantes\"", hoursAgo: 3 },
+      { description: "Progresso atualizado: Beatriz Oliveira → Avançado",            hoursAgo: 5   },
+      { description: "Nova equipe criada: CodeQueens (mentora: Carla Santos)",       hoursAgo: 8   },
+      { description: "Presença registrada: Sessão de Tutoria #5 (12 alunas)",        hoursAgo: 26  },
+      { description: "Novo material publicado: \"Design de Interfaces com Figma\"",  hoursAgo: 48  },
+      { description: "Equipe AlgorithmAngels marcada como Concluída 🎉",             hoursAgo: 72  },
+      { description: "Novo usuário cadastrado: Giovana Caetano (ALUNA)",             hoursAgo: 96  },
+      { description: "Sessão Meninas no Lab — Python Básico realizada",              hoursAgo: 120 },
+      { description: "Configuração de IA atualizada pela administradora",            hoursAgo: 144 },
+    ];
+
+    for (const a of sampleActivities) {
+      const createdAt = new Date();
+      createdAt.setHours(createdAt.getHours() - a.hoursAgo);
+      await prisma.activityLog.create({
+        data: { description: a.description, createdAt },
+      });
+    }
+    console.log(`✅ ${sampleActivities.length} atividades recentes criadas.`);
+  }
+
+  // ── 11. Base de conhecimento padrão (arquivos/ e links.txt) ──────────────────
   const ARQUIVOS_PATH = "/app/arquivos";
   const KNOWLEDGE_EXTS = new Set([".pdf", ".docx", ".txt", ".md", ".xlsx", ".csv"]);
 

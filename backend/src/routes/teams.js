@@ -60,6 +60,11 @@ export async function teamRoutes(app) {
   }, async (req, reply) => {
     const { name, description, mentorId, studentIds = [], thunkableUrl, telegramUrl, whatsappUrl, accessCode, status } = req.body;
 
+    // RBAC: apenas ADMIN ou MENTORA podem criar equipes
+    if (req.user.role !== "ADMIN" && req.user.role !== "MENTORA") {
+      return reply.status(403).send({ message: "Você não tem permissão para criar equipes." });
+    }
+
     const mentor = await prisma.user.findUnique({ where: { id: mentorId } });
     if (!mentor || mentor.role !== "MENTORA") {
       return reply.status(400).send({ message: "mentorId deve referenciar um usuário com papel MENTORA." });
@@ -93,7 +98,7 @@ export async function teamRoutes(app) {
   });
 
   // ── PUT /:id — atualiza equipe (ADMIN ou MENTORA da própria equipe) ──────────
-  app.put("/:id", async (req, reply) => {
+  app.put("/:id", { onRequest: [app.authenticate] }, async (req, reply) => {
     const id = Number(req.params.id);
     const userId = req.user.id;
     const userRole = req.user.role;
@@ -141,7 +146,7 @@ export async function teamRoutes(app) {
   });
 
   // ── POST /:id/join — aluna entra na equipe via senha ───────────────────────
-  app.post("/:id/join", async (req, reply) => {
+  app.post("/:id/join", { onRequest: [app.authenticate] }, async (req, reply) => {
     const id = Number(req.params.id);
     const { code } = req.body;
     const userId = req.user.id;

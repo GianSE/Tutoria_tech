@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Loader2, Bot, Trash2 } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Bot, Trash2, Settings2, AlertCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../lib/api";
 import { useChat } from "../context/ChatContext";
+import { useAuth } from "../context/AuthContext";
 
 // Helper to parse basic markdown bold (**text**)
 const formatText = (text) => {
@@ -19,6 +21,10 @@ export default function ChatWidget() {
     "Como usar a Rose?",
     "Dúvidas sobre o Projeto",
   ];
+
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
 
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
@@ -65,9 +71,19 @@ export default function ChatWidget() {
       });
 
       const data = await response.json();
-      
+
       if (response.ok) {
         appendMessage(conversationId, { role: "model", text: data.response });
+      } else if (response.status === 503) {
+        // IA não configurada — mensagem amigável por papel
+        const fallbackText = isAdmin
+          ? "Ainda não tenho uma chave configurada para conversar com você. Vá em **Configurações da IA** e configure a chave Gemini para me ativar."
+          : "A assistente Rose ainda não foi configurada por um administrador. Avise um admin para configurar a IA no painel e eu ficarei disponível em breve!";
+        appendMessage(conversationId, {
+          role: "model",
+          text: fallbackText,
+          needsConfig: true,
+        });
       } else {
         const serverMessage = data?.message || "Desculpa, ocorreu um erro ao contactar o servidor. 😢";
         appendMessage(conversationId, { role: "model", text: serverMessage });
@@ -152,15 +168,35 @@ export default function ChatWidget() {
 
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div 
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
-                    msg.role === "user" 
-                      ? "bg-violet-600 text-white rounded-tr-sm" 
-                      : "bg-slate-800 text-slate-200 border border-slate-700/50 rounded-tl-sm"
-                  }`}
-                  style={{ whiteSpace: "pre-wrap" }}
-                >
-                  {formatText(msg.text)}
+                <div className={`max-w-[85%] flex flex-col gap-2 ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                  <div
+                    className={`rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
+                      msg.role === "user"
+                        ? "bg-violet-600 text-white rounded-tr-sm"
+                        : msg.needsConfig
+                          ? "bg-amber-500/10 text-amber-200 border border-amber-500/30 rounded-tl-sm"
+                          : "bg-slate-800 text-slate-200 border border-slate-700/50 rounded-tl-sm"
+                    }`}
+                    style={{ whiteSpace: "pre-wrap" }}
+                  >
+                    {msg.needsConfig && (
+                      <div className="flex items-center gap-2 mb-2 text-amber-300 text-[11px] font-bold uppercase tracking-wider">
+                        <AlertCircle size={12} /> IA não configurada
+                      </div>
+                    )}
+                    {formatText(msg.text)}
+                  </div>
+
+                  {/* Botão de configurar — apenas admin */}
+                  {msg.needsConfig && isAdmin && (
+                    <button
+                      onClick={() => { setIsOpen(false); navigate("/configuracoes-ia"); }}
+                      className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-lg shadow-violet-500/20 transition-all"
+                    >
+                      <Settings2 size={13} />
+                      Ir para Configurações da IA
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

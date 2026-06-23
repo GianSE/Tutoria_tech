@@ -51,6 +51,8 @@ export default function ConfiguracoesIAPage() {
   const [showApiKeyHelp, setShowApiKeyHelp] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [addingUrl, setAddingUrl] = useState(false);
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
+  const [revoking, setRevoking] = useState(false);
   const [showCrawlModal, setShowCrawlModal] = useState(false);
   const [crawlUrl, setCrawlUrl] = useState("");
   const [crawling, setCrawling] = useState(false);
@@ -176,6 +178,27 @@ export default function ConfiguracoesIAPage() {
       setError(err.message || "Erro inesperado ao salvar configuracoes.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleRevokeKey() {
+    setRevoking(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await apiFetch("/api/settings/ai", {
+        method: "PUT",
+        body: JSON.stringify({ apiKey: "" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Erro ao revogar a chave.");
+      setApiKey("");
+      setShowRevokeConfirm(false);
+      setSuccess("Chave Gemini revogada. A Rose ficará indisponível até uma nova chave ser configurada.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRevoking(false);
     }
   }
 
@@ -512,19 +535,31 @@ export default function ConfiguracoesIAPage() {
           <div className="relative">
             <input
               type={showApiKey ? "text" : "password"}
-              className="input-field pr-12"
+              className={`input-field ${apiKey ? "pr-20" : "pr-12"}`}
               placeholder="Cole a chave da API Gemini"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
             />
-            <button
-              type="button"
-              onClick={() => setShowApiKey((prev) => !prev)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
-              title={showApiKey ? "Ocultar chave" : "Exibir chave"}
-            >
-              {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {apiKey && (
+                <button
+                  type="button"
+                  onClick={() => setShowRevokeConfirm(true)}
+                  className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 p-1.5 rounded-lg transition-colors"
+                  title="Revogar chave"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowApiKey((prev) => !prev)}
+                className="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+                title={showApiKey ? "Ocultar chave" : "Exibir chave"}
+              >
+                {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
           <div className="flex items-center justify-between mt-2">
             <p className="text-slate-500 text-xs">
@@ -833,6 +868,38 @@ export default function ConfiguracoesIAPage() {
         )}
       </Modal>
       
+      {/* ─── Modal: Confirmar revogação da chave ─────────────────────────────── */}
+      <Modal isOpen={showRevokeConfirm} onClose={() => setShowRevokeConfirm(false)} title="Revogar Gemini API Key" size="sm">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+            <AlertCircle size={18} className="text-red-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-red-200 leading-relaxed">
+              A assistente Rose ficará <span className="font-bold">indisponível</span> até uma nova chave ser configurada.
+              Esta ação não afeta a base de conhecimento (chunks já vetorizados continuam salvos).
+            </p>
+          </div>
+          <p className="text-slate-400 text-sm">
+            Tem certeza que deseja remover a chave?
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              onClick={() => setShowRevokeConfirm(false)}
+              className="px-4 py-2 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleRevokeKey}
+              disabled={revoking}
+              className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold flex items-center gap-2 disabled:opacity-60"
+            >
+              {revoking ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              {revoking ? "Revogando..." : "Sim, revogar"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       {/* ─── Modal: Rastrear páginas do site ─────────────────────────────────── */}
       <Modal isOpen={showCrawlModal} onClose={() => setShowCrawlModal(false)} title="Rastrear páginas do site" size="md">
         <div className="space-y-4">
@@ -927,8 +994,8 @@ export default function ConfiguracoesIAPage() {
             <ol className="list-decimal list-inside text-sm text-slate-400 space-y-2.5">
               <li>Acesse o <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-violet-400 hover:underline">Google AI Studio</a>.</li>
               <li>Faça login com sua conta Google.</li>
-              <li>Clique em <span className="text-slate-200">"Get API key"</span> no menu lateral.</li>
-              <li>Clique em <span className="text-slate-200">"Create API key in new project"</span>.</li>
+              <li>Clique em <span className="text-slate-200">"Chaves de API"</span> no menu lateral.</li>
+              <li>Clique em <span className="text-slate-200">"Criar chave de API"</span>.</li>
               <li>Copie a chave gerada e cole no campo <span className="text-slate-200">Gemini API Key</span>.</li>
               <li>Clique em <span className="text-violet-400 font-semibold">Testar API Key</span> — se válida, a chave é <span className="text-emerald-400 font-semibold">salva automaticamente</span>.</li>
             </ol>
