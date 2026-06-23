@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useScrollDirection } from "../hooks/useScrollDirection";
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import ChatWidget from "./ChatWidget";
+import BottomNav from "./BottomNav";
 import { useAuth } from "../context/AuthContext";
 import { LogOut, ShieldAlert } from "lucide-react";
 
@@ -26,17 +28,22 @@ export default function Layout() {
   const { pathname } = useLocation();
   const title = PAGE_TITLES[pathname] ?? "Tutoria Meninas";
 
-  // Fecha o drawer mobile ao navegar
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [pathname]);
+  const { isVisible: isNavVisible, scrollRef, handleScroll } = useScrollDirection();
+
+  // Fecha o drawer ao navegar
+  useEffect(() => { setIsMobileMenuOpen(false); }, [pathname]);
 
   return (
     <div className="h-screen bg-slate-950 flex flex-col md:flex-row overflow-hidden">
+      <div className="hidden md:block h-full">
+        <Sidebar isExpanded={isSidebarExpanded} />
+      </div>
+
+      {/* Drawer mobile (abre pelo sanduíche do header) */}
       <Sidebar
-        isExpanded={isSidebarExpanded}
         isMobileOpen={isMobileMenuOpen}
         onMobileClose={() => setIsMobileMenuOpen(false)}
+        mobileOnly
       />
 
       {/* Área principal */}
@@ -66,17 +73,26 @@ export default function Layout() {
           pageTitle={title}
           isSidebarExpanded={isSidebarExpanded}
           onToggleSidebar={() => setIsSidebarExpanded((prev) => !prev)}
-          onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+          onOpenMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
           isImpersonating={isImpersonating}
+          isVisible={isNavVisible}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-6 scroll-smooth">
+        <main
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 scroll-smooth"
+        >
           <div className="w-full max-w-7xl mx-auto">
             <Outlet />
           </div>
         </main>
       </div>
 
+      {/* Mobile Bottom Nav */}
+      <BottomNav isVisible={isNavVisible} />
+
+      {/* Assistente IA */}
       <ChatWidget />
     </div>
   );

@@ -4,15 +4,15 @@ import { useAuth } from "../context/AuthContext";
 import { useChat } from "../context/ChatContext";
 
 const dashboard = { to: "/dashboard", label: "Home",      icon: LayoutDashboard };
-const tutorias  = { to: "/equipes",   label: "Equipes",   icon: BookOpen        };
+const equipes  = { to: "/equipes",   label: "Equipes",   icon: BookOpen        };
 const materiais = { to: "/materiais", label: "Materiais", icon: FolderOpen      };
 const agenda    = { to: "/agenda",    label: "Agenda",    icon: CalendarDays    };
 const progresso = { to: "/progresso", label: "Progresso", icon: TrendingUp      };
 
 const ROLE_NAV = {
-  ADMIN:   [dashboard, tutorias, materiais, agenda],
-  MENTORA: [dashboard, progresso, materiais, agenda],
-  ALUNA:   [dashboard, progresso, tutorias, agenda],
+  ADMIN:   [dashboard, equipes, materiais, agenda],
+  MENTORA: [dashboard, equipes, agenda, progresso],
+  ALUNA:   [dashboard, equipes, agenda, progresso],
 };
 
 export default function BottomNav({ isVisible }) {
@@ -26,7 +26,7 @@ export default function BottomNav({ isVisible }) {
   const rightItems = navItems.slice(2);
 
   return (
-    <nav className={`md:hidden fixed bottom-0 left-0 right-0 h-20 bg-slate-900 border-t border-slate-800 grid grid-cols-5 items-center px-2 pb-5 z-40 transition-transform duration-300 ${!isVisible ? "translate-y-[120%]" : "translate-y-0"}`}>
+    <nav className={`md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 grid grid-cols-5 items-center px-2 pb-3 z-40 transition-transform duration-300 ${!isVisible ? "translate-y-[120%]" : "translate-y-0"}`}>
       {leftItems.map(({ to, label, icon: Icon }) => (
         <NavLink
           key={to + label}

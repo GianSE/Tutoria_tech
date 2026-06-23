@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import NotificationBell from "./NotificationBell";
 import Modal from "./Modal";
 
-export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, onOpenMobileMenu, isImpersonating }) {
+export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, onOpenMobileMenu, isImpersonating, isVisible }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -30,29 +30,30 @@ export default function Header({ pageTitle, isSidebarExpanded, onToggleSidebar, 
   return (
     <>
       <header
-        className="h-14 bg-slate-900 border-b border-slate-800
-                   relative z-50 flex items-center justify-between pr-4 md:pr-6"
+        className={`h-14 bg-slate-900 border-b border-slate-800
+                   relative z-50 flex items-center justify-between pr-4 md:pr-6 transition-all duration-300
+                   ${!isVisible ? "hidden md:flex" : "flex"}`}
       >
         <div className="flex items-center gap-2 pl-3">
-          {/* Hamburger — mobile */}
+          {/* Sanduíche mobile — abre drawer com todas as páginas */}
           <button
             type="button"
             onClick={onOpenMobileMenu}
             className="flex md:hidden w-9 h-9 rounded-lg items-center justify-center text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
-            aria-label="Abrir menu"
+            aria-label="Menu completo"
           >
             <Menu size={20} />
           </button>
 
-          {/* Logo Mobile (ao lado do hamburger) */}
-          <div className="flex md:hidden items-center gap-2 ml-1">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
-              <Sparkles size={14} className="text-white" />
+          {/* Logo Mobile */}
+          <div className="flex md:hidden items-center gap-1.5">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
+              <Sparkles size={12} className="text-white" />
             </div>
             <span className="text-xs font-bold text-white tracking-tight">Tutoria</span>
           </div>
 
-          {/* Hamburger — desktop (expande/recolhe sidebar) */}
+          {/* Hamburger — desktop */}
           <button
             type="button"
             onClick={onToggleSidebar}
