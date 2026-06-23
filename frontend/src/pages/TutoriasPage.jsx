@@ -46,6 +46,7 @@ export default function TutoriasPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
+  const [onlyMine, setOnlyMine] = useState(false);
   const [viewMode, setViewMode] = useState("grid");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -86,6 +87,7 @@ export default function TutoriasPage() {
 
   const canManage = (team) => isAdmin || (user?.role === "MENTORA" && team.mentorId === user.id);
   const isMember = (team) => team.students?.some(s => s.id === user?.id) || team.mentorId === user?.id || isAdmin;
+  const requiresPassword = (team) => isStudent && !isMember(team) && !!team.accessCode;
 
   const openNew = () => {
     setEditingId(null);
@@ -221,10 +223,17 @@ export default function TutoriasPage() {
     setDirectJoining(false);
   };
 
+  const isMine = (team) => {
+    if (user?.role === "MENTORA") return team.mentorId === user.id;
+    if (user?.role === "ALUNA")   return team.students?.some(s => s.id === user.id);
+    return true;
+  };
+
   const filtered = teams.filter((team) => {
     const matchesSearch = !search || team.name.toLowerCase().includes(search.toLowerCase()) || team.mentor?.name?.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "Todos" || team.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesMine   = !onlyMine || isMine(team);
+    return matchesSearch && matchesStatus && matchesMine;
   });
 
   const counts = {
@@ -248,6 +257,16 @@ export default function TutoriasPage() {
             <button onClick={() => setViewMode("grid")} className={`p-1.5 rounded-lg transition-all ${viewMode === "grid" ? "bg-violet-600 text-white shadow-lg shadow-violet-500/20" : "text-slate-500 hover:text-slate-300"}`}><LayoutGrid size={16} /></button>
             <button onClick={() => setViewMode("list")} className={`p-1.5 rounded-lg transition-all ${viewMode === "list" ? "bg-violet-600 text-white shadow-lg shadow-violet-500/20" : "text-slate-500 hover:text-slate-300"}`}><List size={16} /></button>
           </div>
+
+          {(user?.role === "ALUNA" || user?.role === "MENTORA") && (
+            <button
+              onClick={() => setOnlyMine((prev) => !prev)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${onlyMine ? "bg-violet-600/20 border-violet-500/40 text-violet-300" : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white"}`}
+              title={onlyMine ? "Mostrar todas as equipes" : "Mostrar apenas minhas equipes"}
+            >
+              <User size={16} /> Minhas
+            </button>
+          )}
 
           <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${showFilters ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/20" : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white"}`}>
             <Filter size={16} /> {showFilters ? "Ocultar Filtros" : "Filtrar"}
@@ -298,7 +317,7 @@ export default function TutoriasPage() {
               <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
             <div className="md:col-span-1">
-              <button onClick={() => { setSearch(""); setStatusFilter("Todos"); }} className="w-full h-full flex items-center justify-center text-slate-400 hover:text-white bg-slate-800 rounded-xl hover:bg-slate-700 transition-all border border-slate-700" title="Limpar filtros"><X size={18} /></button>
+              <button onClick={() => { setSearch(""); setStatusFilter("Todos"); setOnlyMine(false); }} className="w-full h-full flex items-center justify-center text-slate-400 hover:text-white bg-slate-800 rounded-xl hover:bg-slate-700 transition-all border border-slate-700" title="Limpar filtros"><X size={18} /></button>
             </div>
           </div>
         </div>
@@ -321,10 +340,11 @@ export default function TutoriasPage() {
           {filtered.map((team) => {
             const userInTeam = isMember(team);
             const userCanManage = canManage(team);
+            const isLocked = requiresPassword(team);
 
             return (
               <div key={team.id}
-                onClick={() => setViewTeam(team)}
+                onClick={() => isLocked ? setJoinTeam(team) : setViewTeam(team)}
                 className={`card hover:border-violet-500/40 transition-all duration-300 flex cursor-pointer group relative overflow-hidden p-0
                            ${viewMode === "grid" ? "flex-col" : "flex-row items-center min-h-[80px]"}`}>
 
@@ -336,10 +356,17 @@ export default function TutoriasPage() {
                 <div className={`flex-1 p-4 flex flex-col`}>
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="min-w-0">
-                      <span className={`inline-block text-[8px] font-bold px-2 py-0.5 rounded-md border shadow-sm tracking-tight mb-1
-                                        ${STATUS_STYLE[team.status] ?? STATUS_STYLE.IDEACAO}`}>
-                        {STATUS_LABELS[team.status]?.toUpperCase() ?? team.status}
-                      </span>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className={`inline-block text-[8px] font-bold px-2 py-0.5 rounded-md border shadow-sm tracking-tight
+                                          ${STATUS_STYLE[team.status] ?? STATUS_STYLE.IDEACAO}`}>
+                          {STATUS_LABELS[team.status]?.toUpperCase() ?? team.status}
+                        </span>
+                        {isLocked && (
+                          <span className="inline-flex items-center gap-1 text-[8px] font-bold px-2 py-0.5 rounded-md border bg-amber-500/10 text-amber-400 border-amber-500/30" title="Equipe protegida — senha exigida">
+                            <Lock size={9} /> SENHA
+                          </span>
+                        )}
+                      </div>
                       <h3 className="text-white font-bold text-base md:text-sm group-hover:text-violet-300 transition-colors leading-tight truncate">{team.name}</h3>
                     </div>
 
@@ -388,9 +415,15 @@ export default function TutoriasPage() {
                         {team.telegramUrl && <Send size={14} className="text-sky-500 opacity-60" />}
                       </div>
                       <div className="w-px h-3 bg-slate-800 mx-1 hidden md:block" />
-                      <span className="text-[10px] text-violet-400 font-bold flex items-center gap-1">
-                        Ver <ExternalLink size={12} />
-                      </span>
+                      {isLocked ? (
+                        <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
+                          <Lock size={11} /> Entrar
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-violet-400 font-bold flex items-center gap-1">
+                          Ver <ExternalLink size={12} />
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
