@@ -1,4 +1,4 @@
-#  Tutoria Tech — Plataforma de Mentoria e Aprendizagem
+#  Tutoria Tech — Plataforma de Gestão para Programas de Mentoria
 
 ---
 
@@ -16,6 +16,18 @@
 ---
 
 Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento de alunas, gestão de equipes, agenda de encontros, materiais de apoio e a **Rose** — assistente de IA com RAG integrada.
+
+---
+
+## 📑 Sumário
+
+- [Funcionalidades](#funcionalidades) — o que a plataforma oferece
+- [Stack](#stack) — tecnologias utilizadas
+- [Documentação](#documentação) — guias técnicos detalhados
+- [Pré-requisitos](#pré-requisitos) — Docker e Git
+- [Início Rápido](#início-rápido) — instalação em 2 comandos
+- [Logins de Teste](#logins-de-teste) — credenciais para avaliar o sistema
+- [Licença](#licença)
 
 ---
 
@@ -60,7 +72,10 @@ Plataforma web para apoiar o programa **Technovation Girls**, com acompanhamento
 
 ##  Pré-requisitos
 
-- **Docker Desktop** (com WSL 2) & **Git**
+| Ferramenta | Download |
+| :--- | :--- |
+| 🐳 **Docker Desktop** (com WSL 2) | https://docs.docker.com/desktop/setup/install/windows-install/ |
+| 🔧 **Git** | https://git-scm.com/downloads/win |
 
 ---
 
