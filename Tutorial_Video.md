@@ -1,7 +1,7 @@
 
 # Tutorial de Instalação via Vídeo
 
-Para um passo a passo visual completo, acesse o [Vídeo Tutorial](https://drive.google.com/file/d/1iu-f_WCb6BklwU2wRFgTo_Sw_iyqxVmK/view?usp=sharing).
+Para um passo a passo visual completo, acesse o [Vídeo Tutorial](https://drive.google.com/file/d/13GhYx9QM04GGuFyDMIHUFRBnP0raxSxA/view?usp=sharing).
 
 > Todos os comandos abaixo devem ser executados **dentro da pasta `Tutoria_tech`**.
 
